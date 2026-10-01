@@ -10,8 +10,9 @@
 
 -- require minGUI & other stuffs
 require "minGUI.minGUI"
-require "basic"
-require "tools"
+require "GEM"
+require "instructions"
+require "BASIC"
 require "lexer"
 
 -- default love.load function
@@ -29,7 +30,7 @@ function love.load()
 
 	-- initialize minGUI
 	minGUI_init()
-	
+
 	-- set theme
 	minGUI:set_theme("GEM")
 
@@ -39,15 +40,15 @@ function love.load()
 	minGUI:set_inverted_text_color(1, 1, 1, 1)
 	minGUI:set_greyed_background_color(1, 1, 1, 1)
 	minGUI:set_greyed_text_color(0.5, 0.5, 0.5, 1)
-	
+
 	-- load & set font
 	minGUI:load_font(1, "fonts/CPCMode1.ttf", 16)
 	minGUI:set_font(1)
-	
+
 	-- init array of windows & array of gadgets
 	minGUI_window = {}
 	minGUI_gadget = {}
-	
+
 	-- add default window
 	BASE_WINDOW = minGUI:add_window(320, 60, 1280, 960)
 
@@ -61,14 +62,14 @@ function love.load()
 
 	-- add default canvas
 	minGUI:add_panel(0, 0, 1280, 944, nil, BASE_WINDOW)
-	
+
 	-- show drives
 	icon = {}
 	icon[1] = love.graphics.newImage("icons/swap_drive.png")
 	icon[2] = love.graphics.newImage("icons/work_drive.png")
 	icon[3] = love.graphics.newImage("icons/play_drive.png")
 	icon[4] = love.graphics.newImage("icons/relax_drive.png")
-	
+
 	minGUI_gadget[1] = minGUI:add_image(32, 32, 128, 128, icon[1], nil, BASE_WINDOW)
 	minGUI_gadget[2] = minGUI:add_image(192, 32, 128, 128, icon[2], nil, BASE_WINDOW)
 	minGUI_gadget[3] = minGUI:add_image(352, 32, 128, 128, icon[3], nil, BASE_WINDOW)
@@ -84,24 +85,24 @@ function love.load()
 		arrow = love.mouse.newCursor("mouse_cursors/arrow.png", 0, 0),
 		wait = love.mouse.newCursor("mouse_cursors/wait.png", 0, 0)
 	}
-	
+
 	-- set mouse pointer
 	love.mouse.setCursor(minGUI_mouse_pointer.arrow)
-	
+
 	-- create loveGEM disk drives, if needed
 	GEM_create_drives()
-	
+
 	-- ********** vars **********
 	GEMBASIC_running_prog = false -- no running program at start
 	GEMBASIC_prog = "" -- void string for BASIC program
 	GEMBASIC_lexed_prog = {} -- lexed BASIC program
-	
+
 	GEMBASIC_canvas = love.graphics.newCanvas(480, 270) -- canvas for BASIC games/apps
-	
+
 	GEMBASIC_paper_red = 0 -- clear color
 	GEMBASIC_paper_green = 0
 	GEMBASIC_paper_blue = 0
-	
+
 	GEMBASIC_font_mode_1 = love.graphics.newFont("fonts/CPCMode1.ttf", 8, "mono") -- fonts for BASIC
 	GEMBASIC_font_mode_0 = love.graphics.newFont("fonts/CPCMode0.ttf", 8, "mono")
 end
@@ -116,7 +117,7 @@ end
 function love.update(dt)
 	-- update events list for minGUI
 	minGUI_update_events(dt)
-	
+
 	-- get new menu events
 	local minGUI_eventMenu, minGUI_eventSubMenu = minGUI:get_menu_events()
 
@@ -124,16 +125,16 @@ function love.update(dt)
 		if minGUI_eventSubMenu == 1 then
 			-- desktop infos window
 			local minGUI_flags = bit.bor(MG_FLAG_WINDOW_TITLEBAR, MG_FLAG_WINDOW_TOP_PRIORITY)
-			
+
 			DESKTOP_INFOS_WINDOW = minGUI:add_window(320, 240, 640, 480, "Desktop Infos", minGUI_flags, BASE_WINDOW)
-			
+
 			-- add ok button
 			DESKTOP_INFOS_WINDOW_OK = minGUI:add_button(520, 395, 100, 25, "Ok", nil, DESKTOP_INFOS_WINDOW)
-			
+
 			-- add label gadgets
 			local minGUI_txt = "Love GEM"
 			minGUI:add_label(256, 80, 128, 25, minGUI_txt, minGUI_flags, DESKTOP_INFOS_WINDOW)
-			
+
 			minGUI_txt = "========"
 			minGUI:add_label(256, 105, 128, 25, minGUI_txt, minGUI_flags, DESKTOP_INFOS_WINDOW)
 
@@ -151,17 +152,17 @@ function love.update(dt)
 			love.event.quit()
 		end
 	end
-	
+
 	-- get new gadget events
-	local minGUI_eventGadget, minGUI_eventType, minGUI_eventSource = minGUI:get_gadget_events()
-	
+	local gadget, event, source, drop, info = minGUI:get_gadget_events()
+
 	-- eventGadget received ?
-	if minGUI_eventGadget ~= nil then
+	if gadget ~= nil then
 		-- left click on a gadget ?
-		if minGUI_eventType == MG_EVENT_DRAG_DROPPED then
-			GEM_drop_drive_item(minGUI_eventSource, minGUI_eventGadget)
-		elseif minGUI_eventType == MG_EVENT_LEFT_MOUSE_CLICK then
-			if minGUI_eventGadget == DESKTOP_INFOS_WINDOW_OK then
+		if event == MG_EVENT_DRAG_DROPPED then
+			GEM_drop_drive_item(source, gadget)
+		elseif event == MG_EVENT_LEFT_MOUSE_CLICK then
+			if gadget == DESKTOP_INFOS_WINDOW_OK then
 				if DESKTOP_INFOS_WINDOW and minGUI.gtree[DESKTOP_INFOS_WINDOW] then
 					minGUI:delete_gadget(DESKTOP_INFOS_WINDOW)
 				end
@@ -174,7 +175,7 @@ function love.update(dt)
 					{gadget = minGUI_gadget[4], variable = "RELAX_DRIVE_WINDOW", scrollarea = "RELAX_DRIVE_SCROLLAREA", directory = "Relax", title = "Relax Drive", x = 192, y = 384}
 				}
 				for _, drive in ipairs(drives) do
-					if minGUI_eventGadget == drive.gadget then
+					if gadget == drive.gadget then
 						local window = _G[drive.variable]
 						if not window or not minGUI.gtree[window] then
 							window = minGUI:add_window(drive.x, drive.y, 640, 480, drive.title,
@@ -189,27 +190,44 @@ function love.update(dt)
 					end
 				end
 			end
-		end
-	end
-	
-	-- load BASIC source code & execute it
-	if not GEMBASIC_running_prog then
-		--GEMBASIC_prog = GEMBASIC_load("Play/Oncle_B.prog/main.bas")
-		--GEMBASIC_lexed_prog = lex(GEMBASIC_prog)
-		--GEMBASIC_running_prog = true
-		--[[
-		for i = 1, #GEMBASIC_lexed_prog do
-			if GEMBASIC_lexed_prog[i][1] ~= nil then
-				print(GEMBASIC_lexed_prog[i][1].type)
-				print(GEMBASIC_lexed_prog[i][1].data)
-				print(GEMBASIC_lexed_prog[i][1].posFirst)
-				print(GEMBASIC_lexed_prog[i][1].posLast)
+		elseif event == MG_EVENT_LEFT_MOUSE_DOUBLECLICK then
+			if info and info.scrollarea and info.scrollarea == SWAP_DRIVE_SCROLLAREA then
+				-- fileName to upper
+				string.upper(info.fileName)
+				
+				-- if it is a BASIC file...
+				if string.sub(info.fileName, -4) == ".bas" then
+					-- if no program is running...
+					if not GEMBASIC_running_prog then
+						-- load BASIC source code & execute it
+						GEMBASIC_prog = GEMBASIC_load(info.filePath)
+
+						-- lex the program
+						GEMBASIC_lexed_prog = lex(GEMBASIC_prog)
+
+						-- set the program flag to "running"
+						GEMBASIC_running_prog = true
+
+						-- run the program
+						for i = 1, #GEMBASIC_lexed_prog do
+							if GEMBASIC_lexed_prog[i][1] ~= nil then
+								print(GEMBASIC_lexed_prog[i][1].type)
+								print(GEMBASIC_lexed_prog[i][1].data)
+								print(GEMBASIC_lexed_prog[i][1].posFirst)
+								print(GEMBASIC_lexed_prog[i][1].posLast)
+							end
+						end
+
+						-- init GEMBASIC
+						GEMBASIC_init()
+					end
+				end
 			end
 		end
-		
-		GEMBASIC_init()
-		--]]
-	else
+	end
+
+	-- update GEMBASIC
+	if GEMBASIC_running_prog then
 		GEMBASIC_update()
 	end
 end
@@ -221,6 +239,7 @@ function love.draw()
 		-- draw created gadgets from minGUI
 		minGUI_draw_all()
 	else
+		-- draw GEMBASIC game
 		GEMBASIC_draw()
 	end
 end

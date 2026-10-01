@@ -3,9 +3,9 @@ function GEMBASIC_CLS()
 	love.graphics.clear(GEMBASIC_paper_red, GEMBASIC_paper_green, GEMBASIC_paper_blue, 1)
 end
 
--- set pen color
-function GEMBASIC_PEN(r, g, b)
-	love.graphics.setColor(r / 255.0, g / 255.0, b / 255.0)
+-- end the program
+function GEMBASIC_END()
+	GEMBASIC_running_prog = false
 end
 
 -- set text mode
@@ -15,6 +15,11 @@ function GEMBASIC_MODE(m)
 	elseif m == 1 then
 		love.graphics.setFont(GEMBASIC_font_mode_1)
 	end
+end
+
+-- set pen color
+function GEMBASIC_PEN(r, g, b)
+	love.graphics.setColor(r / 255.0, g / 255.0, b / 255.0)
 end
 
 -- print a text at coordinates
