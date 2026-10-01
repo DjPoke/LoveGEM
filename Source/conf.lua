@@ -1,7 +1,7 @@
 function love.conf(t)
 	t.identity = "LoveGEM"
     t.appendidentity = false 
-    t.version = "11.4"
+    t.version = "11.5"
     t.console = false
 
     t.window.title = "LoveGEM"
