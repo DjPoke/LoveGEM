@@ -1,3 +1,6 @@
 # LoveGEM
-This is a GEM made with Löve.
+This is a GEM fake Operating System made with Löve.
 
+Enjoy ;)  
+
+DjPoke  
