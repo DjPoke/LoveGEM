@@ -74,6 +74,11 @@ function love.load()
 	minGUI_gadget[3] = minGUI:add_image(352, 32, 128, 128, icon[3], nil, BASE_WINDOW)
 	minGUI_gadget[4] = minGUI:add_image(512, 32, 128, 128, icon[4], nil, BASE_WINDOW)
 
+	-- Drive launchers preserve window focus until their click opens or raises a drive.
+	for i = 1, 4 do
+		minGUI.gtree[minGUI_gadget[i]].preserveWindowFocus = true
+	end
+
 	-- load mouse pointers
 	minGUI_mouse_pointer = {
 		arrow = love.mouse.newCursor("mouse_cursors/arrow.png", 0, 0),
