@@ -1,2 +1,3 @@
 # LoveGEM
- A GEM made with Löve
+This is a GEM made with Löve.
+
