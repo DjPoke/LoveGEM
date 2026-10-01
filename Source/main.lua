@@ -153,12 +153,14 @@ function love.update(dt)
 	end
 	
 	-- get new gadget events
-	local minGUI_eventGadget, minGUI_eventType = minGUI:get_gadget_events()
+	local minGUI_eventGadget, minGUI_eventType, minGUI_eventSource = minGUI:get_gadget_events()
 	
 	-- eventGadget received ?
 	if minGUI_eventGadget ~= nil then
 		-- left click on a gadget ?
-		if minGUI_eventType == MG_EVENT_LEFT_MOUSE_CLICK then
+		if minGUI_eventType == MG_EVENT_DRAG_DROPPED then
+			GEM_drop_drive_item(minGUI_eventSource, minGUI_eventGadget)
+		elseif minGUI_eventType == MG_EVENT_LEFT_MOUSE_CLICK then
 			if minGUI_eventGadget == DESKTOP_INFOS_WINDOW_OK then
 				if DESKTOP_INFOS_WINDOW and minGUI.gtree[DESKTOP_INFOS_WINDOW] then
 					minGUI:delete_gadget(DESKTOP_INFOS_WINDOW)

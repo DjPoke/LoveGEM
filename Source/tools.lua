@@ -60,19 +60,81 @@ function GEM_create_drive_scrollarea(window, directory)
     local area = minGUI:add_scrollarea(MG_WINDOW_BORDER_WIDTH, 0,
         width, height, width, contentHeight, nil, window)
     if not area then return end
+    minGUI.gtree[area].driveDirectory = directory
+    bounds.driveDirectory, bounds.driveScrollarea = directory, area
     for i, entry in ipairs(entries) do
         local x = padding + ((i - 1) % columns) * (cellWidth + gap)
         local y = rowY[entry.row]
         GEM_drive_images[entry.icon] = GEM_drive_images[entry.icon] or love.graphics.newImage(entry.icon)
-        minGUI:add_image(x + (cellWidth - iconSize) / 2, y, iconSize, iconSize, GEM_drive_images[entry.icon], nil, area)
+        local image = minGUI:add_image(x + (cellWidth - iconSize) / 2, y, iconSize, iconSize,
+            GEM_drive_images[entry.icon], MG_FLAG_DRAG_DROPPABLE, area)
         local label = minGUI:add_label(x, y + iconSize + 4, cellWidth, entry.labelHeight,
             entry.name, MG_FLAG_ALIGN_CENTER, area)
+        if image then
+            minGUI.gtree[image].dragLabel = label
+            minGUI.gtree[image].filePath = directory .. "/" .. entry.name
+        end
         if label then
             minGUI.gtree[label].wrapText = true
             minGUI.gtree[label].apaper = 0
         end
     end
     return area
+end
+
+-- Copy the disk entry represented by an icon, then rebuild the destination grid.
+function GEM_drop_drive_item(sourceID, targetID)
+    local source, target = minGUI.gtree[sourceID], minGUI.gtree[targetID]
+    if not source or not source.filePath then return end
+    while target and not (target.tp == MG_WINDOW and target.driveDirectory) do
+        target = minGUI.gtree[target.parent]
+    end
+    if not target then return end
+    local sourcePath, directory = source.filePath, target.driveDirectory
+    local sourceDirectory, name = sourcePath:match("^(.*)/([^/]+)$")
+    if not name or sourceDirectory == directory then return end
+    if directory == sourcePath or directory:sub(1, #sourcePath + 1) == sourcePath .. "/" then return end
+    local destination = directory .. "/" .. name
+    local info = love.filesystem.getInfo(sourcePath)
+    if not info then return end
+    -- Preserve existing entries by choosing a free copy name.
+    local stem, extension = name, ""
+    if info.type == "file" then
+        local base, suffix = name:match("^(.*)(%.[^%.]+)$")
+        if base then stem, extension = base, suffix end
+    end
+    local copyNumber = 1
+    while love.filesystem.getInfo(destination) do
+        destination = directory .. "/" .. stem .. " (copy " .. copyNumber .. ")" .. extension
+        copyNumber = copyNumber + 1
+    end
+    local function copyEntry(from, to)
+        local entry = love.filesystem.getInfo(from)
+        if not entry then return nil, "Missing entry: " .. from end
+        if entry.type == "directory" then
+            local ok, err = love.filesystem.createDirectory(to)
+            if not ok then return nil, err end
+            for _, child in ipairs(love.filesystem.getDirectoryItems(from)) do
+                local success, reason = copyEntry(from .. "/" .. child, to .. "/" .. child)
+                if not success then return nil, reason end
+            end
+            return true
+        elseif entry.type == "file" then
+            local data, err = love.filesystem.read(from)
+            if not data then return nil, err end
+            return love.filesystem.write(to, data)
+        end
+        return nil, "Unsupported entry: " .. from
+    end
+    local ok, err = copyEntry(sourcePath, destination)
+    local oldArea = target.driveScrollarea
+    local area = GEM_create_drive_scrollarea(target.num, directory)
+    if area then
+        if oldArea and minGUI.gtree[oldArea] then minGUI:delete_gadget(oldArea) end
+        _G[directory:upper() .. "_DRIVE_SCROLLAREA"] = area
+    end
+    if not ok then love.window.showMessageBox("Copy failed", tostring(err), "error") end
+    return ok, destination
 end
 
 -- load a BASIC script in memory
