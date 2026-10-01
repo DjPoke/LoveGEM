@@ -5,7 +5,7 @@ end
 
 -- set pen color
 function GEMBASIC_PEN(r, g, b)
-	love.graphics.setColor(r, g, b)
+	love.graphics.setColor(r / 255.0, g / 255.0, b / 255.0)
 end
 
 -- set text mode

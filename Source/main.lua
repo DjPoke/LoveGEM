@@ -2,7 +2,10 @@
 --     Löve GEM
 --
 --   Bruno Vignoli
---   MIT 2023-2024
+--   MIT 2023-2026
+--
+-- with the help of
+-- Codex
 --==================
 
 -- require minGUI & other stuffs
@@ -51,7 +54,7 @@ function love.load()
 	-- add menu at the top of the window
 	minGUI:add_menu(0, 0, 1280, 16, {
 		{head_menu = "Desk", menu_list = {"Desktop infos..."}},
-		{head_menu = "File", menu_list = {"Open", "Infos/Rename", "Search", "-", "New folder", "Close folder", "Close window", "Select all", "Selecte none", "-", "Delete", "-", "Quit"}},
+		{head_menu = "File", menu_list = {"Open", "Infos/Rename", "Search", "-", "New folder", "Close folder", "Close window", "Select all", "Select none", "-", "Delete", "-", "Quit"}},
 		{head_menu = "View", menu_list = {"Show as icons", "Show as text", "-", "Sort by name", "Sort by date", "Sort by size", "Sort by type", "Do not sort", "-", "Define background..."}},
 		{head_menu = "Options", menu_list = {"Install icon", "Install application", "Install devices", "Remove desktop icon", "-", "Set preferences", "Desktop configuration", "Change resolution", "-", "Load desktop", "Save desktop"}}
 	}, nil, BASE_WINDOW)
@@ -158,10 +161,10 @@ function love.update(dt)
 				DESKTOP_INFOS_WINDOW, DESKTOP_INFOS_WINDOW_OK = nil, nil
 			else
 				local drives = {
-					{gadget = minGUI_gadget[1], variable = "SWAP_DRIVE_WINDOW", title = "Swap Drive", x = 0, y = 192},
-					{gadget = minGUI_gadget[2], variable = "WORK_DRIVE_WINDOW", title = "Work Drive", x = 64, y = 256},
-					{gadget = minGUI_gadget[3], variable = "PLAY_DRIVE_WINDOW", title = "Play Drive", x = 128, y = 320},
-					{gadget = minGUI_gadget[4], variable = "RELAX_DRIVE_WINDOW", title = "Relax Drive", x = 192, y = 384}
+					{gadget = minGUI_gadget[1], variable = "SWAP_DRIVE_WINDOW", scrollarea = "SWAP_DRIVE_SCROLLAREA", directory = "Swap", title = "Swap Drive", x = 0, y = 192},
+					{gadget = minGUI_gadget[2], variable = "WORK_DRIVE_WINDOW", scrollarea = "WORK_DRIVE_SCROLLAREA", directory = "Work", title = "Work Drive", x = 64, y = 256},
+					{gadget = minGUI_gadget[3], variable = "PLAY_DRIVE_WINDOW", scrollarea = "PLAY_DRIVE_SCROLLAREA", directory = "Play", title = "Play Drive", x = 128, y = 320},
+					{gadget = minGUI_gadget[4], variable = "RELAX_DRIVE_WINDOW", scrollarea = "RELAX_DRIVE_SCROLLAREA", directory = "Relax", title = "Relax Drive", x = 192, y = 384}
 				}
 				for _, drive in ipairs(drives) do
 					if minGUI_eventGadget == drive.gadget then
@@ -170,6 +173,9 @@ function love.update(dt)
 							window = minGUI:add_window(drive.x, drive.y, 640, 480, drive.title,
 								bit.bor(MG_FLAG_WINDOW_TITLEBAR, MG_FLAG_WINDOW_BUTTONS), BASE_WINDOW)
 							_G[drive.variable] = window
+							if window then
+								_G[drive.scrollarea] = GEM_create_drive_scrollarea(window, drive.directory)
+							end
 						end
 						if window then minGUI:set_window_on_top(window) end
 						break
