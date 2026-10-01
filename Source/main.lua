@@ -70,13 +70,6 @@ function love.load()
 	minGUI_gadget[2] = minGUI:add_image(192, 32, 128, 128, icon[2], nil, BASE_WINDOW)
 	minGUI_gadget[3] = minGUI:add_image(352, 32, 128, 128, icon[3], nil, BASE_WINDOW)
 	minGUI_gadget[4] = minGUI:add_image(512, 32, 128, 128, icon[4], nil, BASE_WINDOW)
-	
-	-- open windows
-	local minGUI_flags = bit.bor(MG_FLAG_WINDOW_TITLEBAR, MG_FLAG_WINDOW_BUTTONS)
-	SWAP_DRIVE_WINDOW = minGUI:add_window(0, 192, 640, 480, "Swap Drive", minGUI_flags, BASE_WINDOW)
-	WORK_DRIVE_WINDOW = minGUI:add_window(64, 256, 640, 480, "Work Drive", minGUI_flags, BASE_WINDOW)
-	PLAY_DRIVE_WINDOW = minGUI:add_window(128, 320, 640, 480, "Play Drive", minGUI_flags, BASE_WINDOW)
-	RELAX_DRIVE_WINDOW = minGUI:add_window(192, 384, 640, 480, "Relax Drive", minGUI_flags, BASE_WINDOW)
 
 	-- load mouse pointers
 	minGUI_mouse_pointer = {
@@ -154,11 +147,34 @@ function love.update(dt)
 	-- get new gadget events
 	local minGUI_eventGadget, minGUI_eventType = minGUI:get_gadget_events()
 	
-	-- desktop infos window is opened ?
-	if minGUI_eventGadget ~= nil and DESKTOP_INFOS_WINDOW ~= nil then
-		if minGUI_eventGadget == DESKTOP_INFOS_WINDOW_OK then
-			if minGUI_eventType == MG_EVENT_LEFT_MOUSE_CLICK then
-				minGUI:delete_gadget(DESKTOP_INFOS_WINDOW)
+	-- eventGadget received ?
+	if minGUI_eventGadget ~= nil then
+		-- left click on a gadget ?
+		if minGUI_eventType == MG_EVENT_LEFT_MOUSE_CLICK then
+			if minGUI_eventGadget == DESKTOP_INFOS_WINDOW_OK then
+				if DESKTOP_INFOS_WINDOW and minGUI.gtree[DESKTOP_INFOS_WINDOW] then
+					minGUI:delete_gadget(DESKTOP_INFOS_WINDOW)
+				end
+				DESKTOP_INFOS_WINDOW, DESKTOP_INFOS_WINDOW_OK = nil, nil
+			else
+				local drives = {
+					{gadget = minGUI_gadget[1], variable = "SWAP_DRIVE_WINDOW", title = "Swap Drive", x = 0, y = 192},
+					{gadget = minGUI_gadget[2], variable = "WORK_DRIVE_WINDOW", title = "Work Drive", x = 64, y = 256},
+					{gadget = minGUI_gadget[3], variable = "PLAY_DRIVE_WINDOW", title = "Play Drive", x = 128, y = 320},
+					{gadget = minGUI_gadget[4], variable = "RELAX_DRIVE_WINDOW", title = "Relax Drive", x = 192, y = 384}
+				}
+				for _, drive in ipairs(drives) do
+					if minGUI_eventGadget == drive.gadget then
+						local window = _G[drive.variable]
+						if not window or not minGUI.gtree[window] then
+							window = minGUI:add_window(drive.x, drive.y, 640, 480, drive.title,
+								bit.bor(MG_FLAG_WINDOW_TITLEBAR, MG_FLAG_WINDOW_BUTTONS), BASE_WINDOW)
+							_G[drive.variable] = window
+						end
+						if window then minGUI:set_window_on_top(window) end
+						break
+					end
+				end
 			end
 		end
 	end
