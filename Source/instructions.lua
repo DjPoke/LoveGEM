@@ -1,10 +1,61 @@
 cursor_x = 1
 cursor_y = 1
 
+graphics_cursor_x = 0
+graphics_cursor_y = 0
+
+GEMBASIC_images = {}
+GEMBASIC_musics = {}
+GEMBASIC_sounds = {}
+
 -- clear the screen
 function GEMBASIC_CLS()
 	cursor_x, cursor_y = 1, 1
 	love.graphics.clear(GEMBASIC_paper_red, GEMBASIC_paper_green, GEMBASIC_paper_blue, 1)
+end
+
+-- draw a line
+function GEMBASIC_DRAW(x, y)
+	local start_x = graphics_cursor_x
+	local start_y = graphics_cursor_y
+	
+	graphics_cursor_x = x
+	graphics_cursor_y = y
+	
+	love.graphics.line(start_x + 0.5, start_y + 0.5, graphics_cursor_x + 0.5, graphics_cursor_y + 0.5)
+	-- Line rasterization may omit the final pixel; include both endpoints.
+	love.graphics.points(start_x + 0.5, start_y + 0.5, graphics_cursor_x + 0.5, graphics_cursor_y + 0.5)
+end
+
+-- draw a line relative
+function GEMBASIC_DRAWR(x, y)
+	local start_x = graphics_cursor_x
+	local start_y = graphics_cursor_y
+	
+	graphics_cursor_x = graphics_cursor_x + x
+	graphics_cursor_y = graphics_cursor_y + y
+	
+	love.graphics.line(start_x + 0.5, start_y + 0.5, graphics_cursor_x + 0.5, graphics_cursor_y + 0.5)
+	-- Line rasterization may omit the final pixel; include both endpoints.
+	love.graphics.points(start_x + 0.5, start_y + 0.5, graphics_cursor_x + 0.5, graphics_cursor_y + 0.5)
+end
+
+-- load an image
+function GEMBASIC_LOADIMAGE(fileName, img_number)
+	GEMBASIC_images[img_number] = love.graphics.newImage(fileName)
+end
+
+-- load a music
+function GEMBASIC_LOADMUSIC(fileName, mus_number)
+	GEMBASIC_musics[mus_number] = love.audio.newSource(fileName, "stream")
+
+    -- loop the music
+    GEMBASIC_musics[mus_number]:setLooping(true)
+end
+
+-- load a sound
+function GEMBASIC_LOADSOUND(fileName, snd_number)
+	GEMBASIC_sounds[snd_number] = love.audio.newSource(fileName, "static")
 end
 
 -- end the program
@@ -32,9 +83,37 @@ function GEMBASIC_MODE(m)
 	end
 end
 
+-- move graphics cursor
+function GEMBASIC_MOVE(x, y)
+	graphics_cursor_x = x
+	graphics_cursor_y = y
+end
+
+-- move graphics cursor relative
+function GEMBASIC_MOVER(x, y)
+	graphics_cursor_x = graphics_cursor_x + x
+	graphics_cursor_y = graphics_cursor_y + y
+end
+
 -- set pen color
 function GEMBASIC_PEN(r, g, b)
-	love.graphics.setColor(r / 255.0, g / 255.0, b / 255.0)
+	love.graphics.setColor(r / 255.0, g / 255.0, b / 255.0, 1)
+end
+
+-- draw a point
+function GEMBASIC_PLOT(x, y)
+	graphics_cursor_x = x
+	graphics_cursor_y = y
+	
+	love.graphics.points(graphics_cursor_x + 0.5, graphics_cursor_y + 0.5)
+end
+
+-- draw a point relative
+function GEMBASIC_PLOTR(x, y)
+	graphics_cursor_x = graphics_cursor_x + x
+	graphics_cursor_y = graphics_cursor_y + y
+	
+	love.graphics.points(graphics_cursor_x + 0.5, graphics_cursor_y + 0.5)
 end
 
 -- LOCATE uses one-based text cells. Optional PRINT coordinates remain in pixels.

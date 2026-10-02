@@ -6,6 +6,11 @@ local precedence = {['or']=1, xor=2, ['and']=3, ['=']=4, ['==']=4,
     ['~=']=4, ['<>']=4, ['<']=4, ['>']=4, ['<=']=4, ['>=']=4,
     ['+']=5, ['-']=5, ['*']=6, ['/']=6, mod=6, pow=8}
 local commands = {cls=true, locate=true, mode=true, pen=true, print=true, waitkey=true, waitmouse=true}
+local mediaAndGraphicsCommands = {
+    draw=2, drawr=2, move=2, mover=2, plot=2, plotr=2,
+    loadimage=2, loadmusic=2, loadsound=2
+}
+for name in pairs(mediaAndGraphicsCommands) do commands[name]=true end
 local functions = {abs=true, atn=true, atn2=true, cos=true, sign=true, sin=true,
     tan=true, asc=true, chr=true, str=true, space=true, string=true}
 
@@ -196,6 +201,10 @@ local function reader(tokens)
                     if self:boundary() then break end
                     args[#args+1]=self:expression()
                 end
+            end
+            local arity=mediaAndGraphicsCommands[word]
+            if arity and (#args~=arity or #separators~=arity-1) then
+                self:fail(word:upper()..' expects '..arity..' comma-separated arguments',t)
             end
             return self:node('command',t,{name=word,arguments=args,separators=separators})
         elseif t.type=='ident' then

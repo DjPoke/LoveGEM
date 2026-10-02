@@ -122,6 +122,15 @@ local function command(node,state)
     end
     if node.name=='cls' then count(0);GEMBASIC_CLS()
     elseif node.name=='locate' then count(2);GEMBASIC_LOCATE(args[1],args[2])
+    elseif node.name=='draw' then count(2);GEMBASIC_DRAW(args[1],args[2])
+    elseif node.name=='drawr' then count(2);GEMBASIC_DRAWR(args[1],args[2])
+    elseif node.name=='move' then count(2);GEMBASIC_MOVE(args[1],args[2])
+    elseif node.name=='mover' then count(2);GEMBASIC_MOVER(args[1],args[2])
+    elseif node.name=='plot' then count(2);GEMBASIC_PLOT(args[1],args[2])
+    elseif node.name=='plotr' then count(2);GEMBASIC_PLOTR(args[1],args[2])
+    elseif node.name=='loadimage' then count(2);GEMBASIC_LOADIMAGE(args[1],args[2])
+    elseif node.name=='loadmusic' then count(2);GEMBASIC_LOADMUSIC(args[1],args[2])
+    elseif node.name=='loadsound' then count(2);GEMBASIC_LOADSOUND(args[1],args[2])
     elseif node.name=='mode' then
         count(1);if args[1]~=0 and args[1]~=1 then error('MODE must be 0 or 1',0) end
         state.mode=args[1];GEMBASIC_MODE(state.mode)
@@ -149,8 +158,10 @@ function GEMBASIC_init(ast)
     if not ast or ast.kind~='program' then return nil,'Expected parsed BASIC program' end
     local ok,code=pcall(compile,ast)
     if not ok then return nil,code end
+    graphics_cursor_x, graphics_cursor_y=0,0
     GEMBASIC_state={code=code,pc=1,variables={},loops={},returns={},mode=1,pen={255,255,255}}
     love.graphics.push('all')
+    love.graphics.origin()
     love.graphics.setCanvas(GEMBASIC_canvas)
     GEMBASIC_CLS()
     love.graphics.pop()
@@ -198,8 +209,12 @@ function GEMBASIC_update()
         return
     end
     love.graphics.push('all')
+    love.graphics.origin()
     love.graphics.setCanvas(GEMBASIC_canvas)
     love.graphics.setScissor()
+    love.graphics.setLineStyle('rough')
+    love.graphics.setLineWidth(1)
+    love.graphics.setPointSize(1)
     GEMBASIC_MODE(state.mode)
     GEMBASIC_PEN((unpack or table.unpack)(state.pen))
     local ok,err=pcall(step,state)
@@ -228,6 +243,7 @@ end
 
 function GEMBASIC_draw()
     love.graphics.push('all')
+    love.graphics.origin()
     love.graphics.setCanvas()
     love.graphics.setScissor()
     love.graphics.setColor(1,1,1,1)

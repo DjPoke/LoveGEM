@@ -74,8 +74,10 @@ local keywords = {
 		'else', 'elseif', 'endif', 'if', 'then', -- conditions
 		'for', 'next', 'repeat', 'step', 'to', 'until', 'wend', 'while', 'break', -- loops
 		'endfunction', 'endprocedure', 'function', 'gosub', 'goto', 'procedure', 'return', -- functions, procedures, subs, jumps
+		-- load media
+		'loadimage', 'loadmusic', 'loadsound',
 		-- graphics
-		'cls', 'locate', 'mode', 'pen', 'print',
+		'cls', 'draw', 'drawr', 'locate', 'mode', 'move', 'mover', 'pen', 'plot', 'plotr', 'print',
 		-- inputs
 		'waitkey', 'waitmouse'
 	}),

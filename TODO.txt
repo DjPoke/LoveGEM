@@ -1,5 +1,6 @@
 TODO
 ====
 
+- Corriger le simple clic sur un folder, remplacer par double clic pour ouvrir
 - Pouvoir éditer les fichiers texte de la même manière que les .bas
 - Pouvoir sélectionner plusieurs fichiers à la souris
