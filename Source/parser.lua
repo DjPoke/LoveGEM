@@ -8,7 +8,9 @@ local precedence = {['or']=1, xor=2, ['and']=3, ['=']=4, ['==']=4,
 local commands = {cls=true, locate=true, mode=true, pen=true, print=true, waitkey=true, waitmouse=true}
 local mediaAndGraphicsCommands = {
     draw=2, drawr=2, move=2, mover=2, plot=2, plotr=2,
-    loadimage=2, loadmusic=2, loadsound=2
+    loadimage=2, loadsprite=4, loadmusic=2, loadsound=2,
+    drawimage=3, drawsprite={4,9}, playmusic=1, stopmusic=1, loopmusic=2,
+    playsound=1, stopsound=1
 }
 for name in pairs(mediaAndGraphicsCommands) do commands[name]=true end
 local functions = {abs=true, atn=true, atn2=true, cos=true, sign=true, sin=true,
@@ -203,8 +205,13 @@ local function reader(tokens)
                 end
             end
             local arity=mediaAndGraphicsCommands[word]
-            if arity and (#args~=arity or #separators~=arity-1) then
-                self:fail(word:upper()..' expects '..arity..' comma-separated arguments',t)
+            if arity then
+                local minimum = type(arity)=='table' and arity[1] or arity
+                local maximum = type(arity)=='table' and arity[2] or arity
+                if #args<minimum or #args>maximum or #separators~=#args-1 then
+                    local expected = minimum==maximum and tostring(minimum) or (minimum..' to '..maximum)
+                    self:fail(word:upper()..' expects '..expected..' comma-separated arguments',t)
+                end
             end
             return self:node('command',t,{name=word,arguments=args,separators=separators})
         elseif t.type=='ident' then

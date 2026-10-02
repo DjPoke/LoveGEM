@@ -75,9 +75,14 @@ local keywords = {
 		'for', 'next', 'repeat', 'step', 'to', 'until', 'wend', 'while', 'break', -- loops
 		'endfunction', 'endprocedure', 'function', 'gosub', 'goto', 'procedure', 'return', -- functions, procedures, subs, jumps
 		-- load media
-		'loadimage', 'loadmusic', 'loadsound',
+		'loadimage', 'loadsprite', 'loadmusic', 'loadsound',
 		-- graphics
 		'cls', 'draw', 'drawr', 'locate', 'mode', 'move', 'mover', 'pen', 'plot', 'plotr', 'print',
+		'drawimage', 'drawsprite',
+		-- musics
+		'playmusic','stopmusic','loopmusic',
+		-- sounds
+		'playsound','stopsound',
 		-- inputs
 		'waitkey', 'waitmouse'
 	}),

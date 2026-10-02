@@ -129,8 +129,18 @@ local function command(node,state)
     elseif node.name=='plot' then count(2);GEMBASIC_PLOT(args[1],args[2])
     elseif node.name=='plotr' then count(2);GEMBASIC_PLOTR(args[1],args[2])
     elseif node.name=='loadimage' then count(2);GEMBASIC_LOADIMAGE(args[1],args[2])
+    elseif node.name=='loadsprite' then count(4);GEMBASIC_LOADSPRITE(args[1],args[2],args[3],args[4])
     elseif node.name=='loadmusic' then count(2);GEMBASIC_LOADMUSIC(args[1],args[2])
     elseif node.name=='loadsound' then count(2);GEMBASIC_LOADSOUND(args[1],args[2])
+    elseif node.name=='drawimage' then count(3);GEMBASIC_DRAWIMAGE(args[1],args[2],args[3])
+    elseif node.name=='playmusic' then count(1);GEMBASIC_PLAYMUSIC(args[1])
+    elseif node.name=='stopmusic' then count(1);GEMBASIC_STOPMUSIC(args[1])
+    elseif node.name=='loopmusic' then count(2);GEMBASIC_LOOPMUSIC(args[1],args[2])
+    elseif node.name=='playsound' then count(1);GEMBASIC_PLAYSOUND(args[1])
+    elseif node.name=='stopsound' then count(1);GEMBASIC_STOPSOUND(args[1])
+    elseif node.name=='drawsprite' then
+        if #args<4 or #args>9 then error('drawsprite expects 4 to 9 arguments',0) end
+        GEMBASIC_DRAWSPRITE((unpack or table.unpack)(args))
     elseif node.name=='mode' then
         count(1);if args[1]~=0 and args[1]~=1 then error('MODE must be 0 or 1',0) end
         state.mode=args[1];GEMBASIC_MODE(state.mode)
