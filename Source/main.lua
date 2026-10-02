@@ -18,6 +18,7 @@ require "parser"
 require "notepad"
 require "img_viewer"
 require "snd_player"
+require "beep"
 
 -- default love.load function
 function love.load()
@@ -223,7 +224,9 @@ function love.update(dt)
 	-- eventGadget received ?
 	if gadget ~= nil then
 		-- left click on a gadget ?
-		if snd_player_event(gadget, event) then
+		if notepad_gadget_event(gadget, event) then
+			-- Notepad owns its save shortcut.
+		elseif snd_player_event(gadget, event) then
 			-- Audio player owns its Play and Stop buttons.
 		elseif event == MG_EVENT_DRAG_DROPPED then
 			if gadget == minGUI_gadget[5] then
@@ -237,9 +240,6 @@ function love.update(dt)
 					minGUI:delete_gadget(DESKTOP_INFOS_WINDOW)
 				end
 				DESKTOP_INFOS_WINDOW, DESKTOP_INFOS_WINDOW_OK = nil, nil
-			elseif info and info.scrollarea and info.filePath
-				and love.filesystem.getInfo(info.filePath, "directory") then
-				GEM_open_folder(info.filePath)
 			else
 				local drives = {
 					{gadget = minGUI_gadget[1], variable = "SWAP_DRIVE_WINDOW", scrollarea = "SWAP_DRIVE_SCROLLAREA", directory = "Swap", title = "Swap Drive", x = 0, y = 192},
@@ -266,7 +266,12 @@ function love.update(dt)
 			end
 		elseif event == MG_EVENT_LEFT_MOUSE_DOUBLECLICK then
 			local extension = info and info.fileName and info.fileName:lower():match("%.([^%.]+)$")
-			if info and info.scrollarea and (extension == "jpg" or extension == "png") then
+			if info and info.scrollarea and info.filePath
+				and love.filesystem.getInfo(info.filePath, "directory") then
+				GEM_open_folder(info.filePath)
+			elseif info and info.scrollarea and extension == "txt" then
+				open_notepad(info.filePath)
+			elseif info and info.scrollarea and (extension == "jpg" or extension == "png") then
 				open_img_viewer(info.filePath)
 			elseif info and info.scrollarea and (extension == "ogg" or extension == "wav") then
 				open_snd_player(info.filePath)

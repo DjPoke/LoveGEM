@@ -1,5 +1,21 @@
+require "beep"
+
 -- One simple notepad window, editing a file through Love's filesystem.
 local notepad
+local SAVE_EVENT = "notepad_save"
+local QUIT_EVENT = "notepad_quit"
+
+local function save_notepad()
+    if not notepad or not minGUI.gtree[notepad.editor] then return end
+    local ok,err=love.filesystem.write(notepad.path,minGUI:get_gadget_text(notepad.editor))
+    if not ok then
+        love.window.showMessageBox('Notepad - Save',tostring(err),'error')
+    else
+        BEEP:stop()
+        BEEP:play()
+    end
+    minGUI:set_focus(notepad.editor)
+end
 
 function close_notepad()
     if notepad and minGUI.gtree[notepad.window] then minGUI:delete_gadget(notepad.window) end
@@ -23,13 +39,15 @@ function open_notepad(path)
     local border=MG_WINDOW_BORDER_WIDTH
     local menuHeight=math.max(20,minGUI.font[minGUI.numFont]:getHeight()+4)
     local menu=minGUI:add_menu(border,0,width-2*border,menuHeight,
-        {{head_menu='File',menu_list={'Save'}}},nil,window)
+        {{head_menu='File',menu_list={'Save [ctrl+s]', 'Quit [ctrl+q]'}}},nil,window)
     local contentHeight=height-minGUI_window_top_inset(window)-menuHeight-border
     local statusHeight=24
     local editor=minGUI:add_editor(border,0,width-2*border,contentHeight-statusHeight,text,nil,window)
     local row=minGUI:add_label(border+8,contentHeight-statusHeight,180,statusHeight,'Line: 1',nil,window)
     local column=minGUI:add_label(border+196,contentHeight-statusHeight,180,statusHeight,'Column: 1',nil,window)
     notepad={window=window,menu=menu,editor=editor,row=row,column=column,path=path}
+    minGUI:add_keyboard_shortcut(window, "ctrl+s", SAVE_EVENT)
+    minGUI:add_keyboard_shortcut(window, "ctrl+q", QUIT_EVENT)
     minGUI:set_focus(editor)
     return window
 end
@@ -50,9 +68,21 @@ end
 function notepad_menu_event(menu,item,gadget)
     if not notepad or gadget~=notepad.menu then return false end
     if menu==1 and item==1 and minGUI.gtree[notepad.editor] then
-        local ok,err=love.filesystem.write(notepad.path,minGUI:get_gadget_text(notepad.editor))
-        if not ok then love.window.showMessageBox('Notepad - Save',tostring(err),'error') end
-        minGUI:set_focus(notepad.editor)
+        save_notepad()
+    elseif menu==1 and item==2 then
+        close_notepad()
+    end
+    return true
+end
+
+function notepad_gadget_event(gadget,event)
+    if not notepad or gadget~=notepad.window then return false end
+    if event==SAVE_EVENT then
+        save_notepad()
+    elseif event==QUIT_EVENT then
+        close_notepad()
+    else
+        return false
     end
     return true
 end
