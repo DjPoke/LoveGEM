@@ -1,3 +1,5 @@
 TODO
 ====
 
+- Pouvoir éditer les fichiers texte
+- Pouvoir sélectionner plusieurs fichiers à la souris
