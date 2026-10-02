@@ -1,6 +1,7 @@
 TODO
 ====
 
+- Copier le contenu de "examples/Play" dans "Play"
 - Faire/corriger le menu principal
 - Faire la doc de GEM
 - Compléter la doc du BASIC au fur et à mesure
