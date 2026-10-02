@@ -1,3 +1,4 @@
 TODO
 ====
 
+- Faire un notepad pour les fichiers .bas et .txt.

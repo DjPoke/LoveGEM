@@ -14,6 +14,7 @@ require "GEM"
 require "instructions"
 require "BASIC"
 require "lexer"
+require "parser"
 
 -- default love.load function
 function love.load()
@@ -94,6 +95,8 @@ function love.load()
 
 	-- ********** vars **********
 	GEMBASIC_running_prog = false -- no running program at start
+	GEMBASIC_finished = false
+	GEMBASIC_returningToGUI = false
 	GEMBASIC_prog = "" -- void string for BASIC program
 	GEMBASIC_lexed_prog = {} -- lexed BASIC program
 
@@ -110,11 +113,34 @@ end
 -- default love.textinput function
 function love.textinput(t)
 	-- send text input to minGUI
-    minGUI_textinput(t)
+    if not GEMBASIC_running_prog and not GEMBASIC_finished and not GEMBASIC_returningToGUI then minGUI_textinput(t) end
+end
+
+-- Resume WAITKEY on any key press.
+function love.keypressed(key, scancode, isrepeat)
+	if not isrepeat then GEMBASIC_keypressed() end
+end
+
+function love.mousepressed(x, y, button)
+	GEMBASIC_dismiss()
 end
 
 -- default love.update function
 function love.update(dt)
+	if GEMBASIC_running_prog then
+		GEMBASIC_update()
+		return
+	end
+	if GEMBASIC_finished then return end
+	if GEMBASIC_returningToGUI then
+		-- Consume the dismissal input before resuming desktop interaction.
+		for button = 1, 3 do
+			minGUI.mouse.mbtn[button] = love.mouse.isDown(button)
+			minGUI.mouse.oldmbtn[button] = minGUI.mouse.mbtn[button]
+		end
+		if not love.mouse.isDown(1, 2, 3) then GEMBASIC_returningToGUI = false end
+		return
+	end
 	-- update events list for minGUI
 	minGUI_update_events(dt)
 
@@ -191,35 +217,20 @@ function love.update(dt)
 				end
 			end
 		elseif event == MG_EVENT_LEFT_MOUSE_DOUBLECLICK then
-			if info and info.scrollarea and info.scrollarea == SWAP_DRIVE_SCROLLAREA then
-				-- fileName to upper
-				string.upper(info.fileName)
-				
-				-- if it is a BASIC file...
-				if string.sub(info.fileName, -4) == ".bas" then
-					-- if no program is running...
-					if not GEMBASIC_running_prog then
-						-- load BASIC source code & execute it
-						GEMBASIC_prog = GEMBASIC_load(info.filePath)
-
-						-- lex the program
-						GEMBASIC_lexed_prog = lex(GEMBASIC_prog)
-
-						-- set the program flag to "running"
-						GEMBASIC_running_prog = true
-
-						-- run the program
-						for i = 1, #GEMBASIC_lexed_prog do
-							if GEMBASIC_lexed_prog[i][1] ~= nil then
-								print(GEMBASIC_lexed_prog[i][1].type)
-								print(GEMBASIC_lexed_prog[i][1].data)
-								print(GEMBASIC_lexed_prog[i][1].posFirst)
-								print(GEMBASIC_lexed_prog[i][1].posLast)
-							end
-						end
-
-						-- init GEMBASIC
-						GEMBASIC_init()
+			if info and info.scrollarea and info.fileName and info.fileName:lower():sub(-4) == ".bas"
+				and not GEMBASIC_running_prog then
+				local text, loadError = GEMBASIC_load(info.filePath)
+				if not text then
+					love.window.showMessageBox("BASIC error", tostring(loadError), "error")
+				else
+					GEMBASIC_prog = text
+					GEMBASIC_lexed_prog = lex(text)
+					local ast, err = parse(GEMBASIC_lexed_prog)
+					if not ast then
+						love.window.showMessageBox("BASIC error", "Line " .. err.line .. ", column " .. err.column .. ": " .. err.message, "error")
+					else
+						local ok, runtimeError = GEMBASIC_init(ast)
+						if not ok then love.window.showMessageBox("BASIC error", tostring(runtimeError), "error") end
 					end
 				end
 			end
@@ -235,7 +246,7 @@ end
 -- default love.draw function
 function love.draw()
 	-- draw the GUI or draw BASIC
-	if not GEMBASIC_running_prog then
+	if not GEMBASIC_running_prog and not GEMBASIC_finished then
 		-- draw created gadgets from minGUI
 		minGUI_draw_all()
 	else

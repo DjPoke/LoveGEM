@@ -75,7 +75,7 @@ local keywords = {
 		'for', 'next', 'repeat', 'step', 'to', 'until', 'wend', 'while', 'break', -- loops
 		'endfunction', 'endprocedure', 'function', 'gosub', 'goto', 'procedure', 'return', -- functions, procedures, subs, jumps
 		-- graphics
-		'cls', 'mode', 'pen', 'print',
+		'cls', 'locate', 'mode', 'pen', 'print',
 		-- inputs
 		'waitkey', 'waitmouse'
 	}),
