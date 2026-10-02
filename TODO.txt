@@ -1,5 +1,9 @@
 TODO
 ====
 
-- Pouvoir éditer les fichiers texte
+- Pouvoir éditer les fichiers texte de la même manière que les .bas
 - Pouvoir sélectionner plusieurs fichiers à la souris
+- Faire une icone pour les .png et les .jpg
+- Faire une icone pour les .ogg et les .wav
+- Faire un viewer de fichiers .png|.jpg
+- Faire un lecteur de fichiers .ogg|.wav
