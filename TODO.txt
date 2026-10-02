@@ -2,3 +2,4 @@ TODO
 ====
 
 - Faire/corriger le menu principal
+- Voir pour le bug des fenêtres dont l'affichage se superpose
