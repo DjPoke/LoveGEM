@@ -15,6 +15,7 @@ require "instructions"
 require "BASIC"
 require "lexer"
 require "parser"
+require "notepad"
 
 -- default love.load function
 function love.load()
@@ -28,6 +29,9 @@ function love.load()
 	WORK_DRIVE_WINDOW = nil
 	PLAY_DRIVE_WINDOW = nil
 	RELAX_DRIVE_WINDOW = nil
+	
+	CONTEXT_MENU = nil
+	CONTEXT_MENU_INFO = nil
 
 	-- initialize minGUI
 	minGUI_init()
@@ -54,7 +58,7 @@ function love.load()
 	BASE_WINDOW = minGUI:add_window(320, 60, 1280, 960)
 
 	-- add menu at the top of the window
-	minGUI:add_menu(0, 0, 1280, 16, {
+	MAIN_MENU = minGUI:add_menu(0, 0, 1280, 16, {
 		{head_menu = "Desk", menu_list = {"Desktop infos..."}},
 		{head_menu = "File", menu_list = {"Open", "Infos/Rename", "Search", "-", "New folder", "Close folder", "Close window", "Select all", "Select none", "-", "Delete", "-", "Quit"}},
 		{head_menu = "View", menu_list = {"Show as icons", "Show as text", "-", "Sort by name", "Sort by date", "Sort by size", "Sort by type", "Do not sort", "-", "Define background..."}},
@@ -143,11 +147,14 @@ function love.update(dt)
 	end
 	-- update events list for minGUI
 	minGUI_update_events(dt)
+	update_notepad()
 
 	-- get new menu events
-	local minGUI_eventMenu, minGUI_eventSubMenu = minGUI:get_menu_events()
+	local minGUI_eventMenu, minGUI_eventSubMenu, minGUI_menuGadget = minGUI:get_menu_events()
 
-	if minGUI_eventMenu == 1 then
+	if notepad_menu_event(minGUI_eventMenu, minGUI_eventSubMenu, minGUI_menuGadget) then
+		-- File/Save belongs to the notepad.
+	elseif minGUI_menuGadget == MAIN_MENU and minGUI_eventMenu == 1 then
 		if minGUI_eventSubMenu == 1 then
 			-- desktop infos window
 			local minGUI_flags = bit.bor(MG_FLAG_WINDOW_TITLEBAR, MG_FLAG_WINDOW_TOP_PRIORITY)
@@ -173,7 +180,7 @@ function love.update(dt)
 			minGUI_txt = "Programmable in BASIC!"
 			minGUI:add_label(144, 235, 352, 25, minGUI_txt, minGUI_flags, DESKTOP_INFOS_WINDOW)
 		end
-	elseif minGUI_eventMenu == 2 then
+	elseif minGUI_menuGadget == MAIN_MENU and minGUI_eventMenu == 2 then
 		if minGUI_eventSubMenu == 13 then
 			love.event.quit()
 		end
@@ -181,6 +188,22 @@ function love.update(dt)
 
 	-- get new gadget events
 	local gadget, event, source, drop, info = minGUI:get_gadget_events()
+	local contextMenu, contextItem = minGUI:get_context_menu_events()
+	if contextMenu == CONTEXT_MENU and contextMenu ~= nil and CONTEXT_MENU_INFO then
+		if contextItem == 1 then
+			-- Run uses the same loading/parsing path as a double-click.
+			if gadget then
+				table.insert(minGUI.gstack, 1, {eventGadget = gadget, eventType = event, eventSource = source, eventDrop = drop})
+			end
+			gadget, event, info = contextMenu, MG_EVENT_LEFT_MOUSE_DOUBLECLICK, CONTEXT_MENU_INFO
+		elseif contextItem == 3 then
+			-- Edit selection: the editor action can use this exact file path.
+			open_notepad(CONTEXT_MENU_INFO.filePath)
+		elseif contextItem == 5 then
+			-- Delete selection: no disk entry is removed without an application handler.
+			print("Delete", CONTEXT_MENU_INFO.fileName, CONTEXT_MENU_INFO.filePath)
+		end
+	end
 
 	-- eventGadget received ?
 	if gadget ~= nil then
@@ -233,6 +256,29 @@ function love.update(dt)
 						if not ok then love.window.showMessageBox("BASIC error", tostring(runtimeError), "error") end
 					end
 				end
+			end
+		elseif event == MG_EVENT_RIGHT_MOUSE_CLICK then
+			-- show a context menu if we right click on a BASIC icon
+			if info and info.scrollarea and info.fileName and info.fileName:lower():sub(-4) == ".bas"
+				and not GEMBASIC_running_prog then
+
+				-- get the parent window of the scrollarea
+				local parent_window = info.scrollarea
+				while parent_window and minGUI.gtree[parent_window]
+					and minGUI.gtree[parent_window].tp ~= MG_WINDOW do
+					parent_window = minGUI.gtree[parent_window].parent
+				end
+				if not parent_window or not minGUI.gtree[parent_window] then return end
+				
+				-- if there is already a context menu, delete it
+				if CONTEXT_MENU and minGUI.gtree[CONTEXT_MENU] then
+					minGUI:delete_gadget(CONTEXT_MENU)
+				end
+				
+				-- show the context menu
+				CONTEXT_MENU = minGUI:add_context_menu({"Run", "-", "Edit", "-", "Delete"}, parent_window)
+				CONTEXT_MENU_INFO = {fileName = info.fileName, filePath = info.filePath, scrollarea = info.scrollarea}
+				if CONTEXT_MENU then minGUI:show_context_menu(CONTEXT_MENU) end
 			end
 		end
 	end
