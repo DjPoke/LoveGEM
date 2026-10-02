@@ -328,3 +328,11 @@ function love.draw()
 		GEMBASIC_draw()
 	end
 end
+
+--[[
+function love.keypressed(key)
+    if key == "f5" then
+        love.graphics.captureScreenshot("capture.png")
+    end
+end
+--]]
