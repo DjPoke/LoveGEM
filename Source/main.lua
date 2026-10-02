@@ -16,6 +16,8 @@ require "BASIC"
 require "lexer"
 require "parser"
 require "notepad"
+require "img_viewer"
+require "snd_player"
 
 -- default love.load function
 function love.load()
@@ -137,6 +139,8 @@ end
 
 -- default love.update function
 function love.update(dt)
+	update_img_viewer()
+	update_snd_player()
 	if GEMBASIC_running_prog then
 		GEMBASIC_update()
 		return
@@ -153,6 +157,7 @@ function love.update(dt)
 	end
 	-- update events list for minGUI
 	minGUI_update_events(dt)
+	update_img_viewer()
 	update_notepad()
 
 	-- get new menu events
@@ -218,7 +223,9 @@ function love.update(dt)
 	-- eventGadget received ?
 	if gadget ~= nil then
 		-- left click on a gadget ?
-		if event == MG_EVENT_DRAG_DROPPED then
+		if snd_player_event(gadget, event) then
+			-- Audio player owns its Play and Stop buttons.
+		elseif event == MG_EVENT_DRAG_DROPPED then
 			if gadget == minGUI_gadget[5] then
 				GEM_trash_drive_item(source)
 			else
@@ -258,6 +265,12 @@ function love.update(dt)
 				end
 			end
 		elseif event == MG_EVENT_LEFT_MOUSE_DOUBLECLICK then
+			local extension = info and info.fileName and info.fileName:lower():match("%.([^%.]+)$")
+			if info and info.scrollarea and (extension == "jpg" or extension == "png") then
+				open_img_viewer(info.filePath)
+			elseif info and info.scrollarea and (extension == "ogg" or extension == "wav") then
+				open_snd_player(info.filePath)
+			else
 			if info and info.scrollarea and info.fileName and info.fileName:lower():sub(-4) == ".bas"
 				and not GEMBASIC_running_prog then
 				local text, loadError = GEMBASIC_load(info.filePath)
@@ -274,6 +287,7 @@ function love.update(dt)
 						if not ok then love.window.showMessageBox("BASIC error", tostring(runtimeError), "error") end
 					end
 				end
+			end
 			end
 		elseif event == MG_EVENT_RIGHT_MOUSE_CLICK then
 			local trashItem = info and info.scrollarea and info.filePath

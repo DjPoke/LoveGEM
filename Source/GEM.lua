@@ -73,7 +73,10 @@ function GEM_create_drive_scrollarea(window, directory)
         elseif info and info.type == "file" then
             local extension = name:lower():match("%.([^%.]+)$")
             if extension == "txt" then icon = "icons/text_file.png"
-            elseif extension == "bas" then icon = "icons/program_file.png" end
+            elseif extension == "bas" then icon = "icons/program_file.png"
+            elseif extension == "ogg" then icon = "icons/music_file.png"
+            elseif extension == "wav" then icon = "icons/sound_file.png"
+            elseif extension == "jpg" or extension == "png" then icon = "icons/image_file.png" end
         end
         if icon then
             local group = info.type == "directory" and items or files
