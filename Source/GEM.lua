@@ -208,7 +208,7 @@ end
 
 -- Move an entry into Trashcan; remove the source only after a successful copy.
 function GEM_trash_drive_item(sourceID)
-    local source = minGUI.gtree[sourceID]
+    local source = type(sourceID) == "table" and sourceID or minGUI.gtree[sourceID]
     if not source or not source.filePath then return end
     local window = minGUI.gtree[source.parent]
     while window and not (window.tp == MG_WINDOW and window.driveDirectory) do
@@ -266,7 +266,8 @@ end
 
 -- Copy the disk entry represented by an icon, then rebuild the destination grid.
 function GEM_drop_drive_item(sourceID, targetID, destinationDirectory, destinationName)
-    local source, target = minGUI.gtree[sourceID], destinationDirectory and {driveDirectory=destinationDirectory} or minGUI.gtree[targetID]
+    local source = type(sourceID) == "table" and sourceID or minGUI.gtree[sourceID]
+    local target = destinationDirectory and {driveDirectory=destinationDirectory} or minGUI.gtree[targetID]
     if not source or not source.filePath then return end
     while target and not (target.driveDirectory and (target.tp == MG_WINDOW or destinationDirectory)) do
         target = minGUI.gtree[target.parent]
@@ -319,4 +320,33 @@ function GEM_drop_drive_item(sourceID, targetID, destinationDirectory, destinati
     end
     if not ok then love.window.showMessageBox("Copy failed", tostring(err), "error") end
     return ok, destination
+end
+
+-- Snapshot icons before refreshing any grid: refresh deletes their gadget IDs.
+function GEM_drop_drive_selection(sources, targetID, trash)
+    local entries = {}
+    local target = minGUI.gtree[targetID]
+    while target and not (target.tp == MG_WINDOW and target.driveDirectory) do
+        target = minGUI.gtree[target.parent]
+    end
+    if not trash and not target then return end
+    for _, id in ipairs(sources) do
+        local image = minGUI.gtree[id]
+        if image and image.filePath then
+            local owner = minGUI.gtree[image.parent]
+            while owner and not (owner.tp == MG_WINDOW and owner.driveDirectory) do
+                owner = minGUI.gtree[owner.parent]
+            end
+            if owner then
+                entries[#entries + 1] = {filePath = image.filePath, parent = owner.num}
+            end
+        end
+    end
+    for _, entry in ipairs(entries) do
+        if trash or target.driveDirectory == "Trashcan" then
+            GEM_trash_drive_item(entry)
+        else
+            GEM_drop_drive_item(entry, target.num)
+        end
+    end
 end

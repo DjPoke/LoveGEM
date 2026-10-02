@@ -65,7 +65,7 @@ function love.load()
 	-- add menu at the top of the window
 	MAIN_MENU = minGUI:add_menu(0, 0, 1280, 16, {
 		{head_menu = "Desk", menu_list = {"Desktop infos..."}},
-		{head_menu = "File", menu_list = {"Open", "Infos/Rename", "Search", "-", "New folder", "Close folder", "Close window", "Select all", "Select none", "-", "Delete", "-", "Quit"}},
+		{head_menu = "File", menu_list = {"Open", "Infos/Rename", "Search", "-", "New folder", "Close window", "Select all", "Select none", "-", "Delete", "-", "Quit"}},
 		{head_menu = "View", menu_list = {"Show as icons", "Show as text", "-", "Sort by name", "Sort by date", "Sort by size", "Sort by type", "Do not sort", "-", "Define background..."}},
 		{head_menu = "Options", menu_list = {"Install icon", "Install application", "Install devices", "Remove desktop icon", "-", "Set preferences", "Desktop configuration", "Change resolution", "-", "Load desktop", "Save desktop"}}
 	}, nil, BASE_WINDOW)
@@ -193,7 +193,7 @@ function love.update(dt)
 			minGUI:add_label(144, 235, 352, 25, minGUI_txt, minGUI_flags, DESKTOP_INFOS_WINDOW)
 		end
 	elseif minGUI_menuGadget == MAIN_MENU and minGUI_eventMenu == 2 then
-		if minGUI_eventSubMenu == 13 then
+		if minGUI_eventSubMenu == 12 then
 			love.event.quit()
 		end
 	end
@@ -229,7 +229,9 @@ function love.update(dt)
 		elseif snd_player_event(gadget, event) then
 			-- Audio player owns its Play and Stop buttons.
 		elseif event == MG_EVENT_DRAG_DROPPED then
-			if gadget == minGUI_gadget[5] then
+			if drop and drop.sources and #drop.sources > 1 then
+				GEM_drop_drive_selection(drop.sources, gadget, gadget == minGUI_gadget[5])
+			elseif gadget == minGUI_gadget[5] then
 				GEM_trash_drive_item(source)
 			else
 				GEM_drop_drive_item(source, gadget)
