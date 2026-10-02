@@ -1,0 +1,6 @@
+CLS
+MODE 1
+PEN 255,255,255
+LOCATE 1, 1
+PRINT "Hello, World!"
+END

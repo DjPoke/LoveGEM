@@ -3,14 +3,59 @@ function GEM_create_drives()
 	local minGUI_info = love.filesystem.getInfo("Swap")
 	if not minGUI_info then love.filesystem.createDirectory("Swap") end
 	
-	minGUI_info = love.filesystem.getInfo("Work")	
-	if not minGUI_info then love.filesystem.createDirectory("Work") end
+	minGUI_info = love.filesystem.getInfo("Work")
+	if not minGUI_info then
+		local function copyDirectory(source, destination)
+			local ok, err = love.filesystem.createDirectory(destination)
+			if not ok then return nil, err end
+			for _, name in ipairs(love.filesystem.getDirectoryItems(source)) do
+				local from, to = source .. "/" .. name, destination .. "/" .. name
+				local info = love.filesystem.getInfo(from)
+				if info and info.type == "directory" then
+					ok, err = copyDirectory(from, to)
+				elseif info and info.type == "file" then
+					local data
+					data, err = love.filesystem.read(from)
+					if data then ok, err = love.filesystem.write(to, data)
+					else ok = nil end
+				else
+					return nil, "Unsupported example entry: " .. from
+				end
+				if not ok then return nil, err end
+			end
+			return true
+		end
+		local ok, err = copyDirectory("examples/Work", "Work")
+		if not ok then love.window.showMessageBox("Work", tostring(err), "error") end
+	end
 	
 	minGUI_info = love.filesystem.getInfo("Play")	
 	if not minGUI_info then love.filesystem.createDirectory("Play") end
 	
 	minGUI_info = love.filesystem.getInfo("Relax")	
 	if not minGUI_info then love.filesystem.createDirectory("Relax") end
+	
+	minGUI_info = love.filesystem.getInfo("Trashcan")	
+	if not minGUI_info then love.filesystem.createDirectory("Trashcan") end
+end
+
+-- Open a folder in its own window, or raise its existing window.
+function GEM_open_folder(path)
+    local info = type(path) == "string" and love.filesystem.getInfo(path)
+    if not info or info.type ~= "directory" then return end
+    for id, gadget in minGUI_each_gadget() do
+        if gadget.tp == MG_WINDOW and gadget.driveDirectory == path then
+            minGUI:set_window_on_top(id)
+            return id
+        end
+    end
+    local window = minGUI:add_window(96, 128, 640, 480, path,
+        bit.bor(MG_FLAG_WINDOW_TITLEBAR, MG_FLAG_WINDOW_BUTTONS), BASE_WINDOW)
+    if not window then return end
+    local area = GEM_create_drive_scrollarea(window, path)
+    if not area then minGUI:delete_gadget(window); return end
+    minGUI:set_window_on_top(window)
+    return window, area
 end
 
 -- Populate a drive with its folders, text files and BASIC programs.
@@ -83,16 +128,151 @@ function GEM_create_drive_scrollarea(window, directory)
     return area
 end
 
--- Copy the disk entry represented by an icon, then rebuild the destination grid.
-function GEM_drop_drive_item(sourceID, targetID)
-    local source, target = minGUI.gtree[sourceID], minGUI.gtree[targetID]
+local function trashIndex()
+    local index = {}
+    local data = love.filesystem.read(".trashcan-index") or ""
+    local function decode(hex) return (hex:gsub("%x%x", function(byte) return string.char(tonumber(byte,16)) end)) end
+    for key,value in data:gmatch("(%x+) (%x+)\n") do index[decode(key)] = decode(value) end
+    return index
+end
+
+local function saveTrashIndex(index)
+    local function encode(text) return (text:gsub(".", function(char) return string.format("%02x",char:byte()) end)) end
+    local lines = {}
+    for path,origin in pairs(index) do lines[#lines+1]=encode(path).." "..encode(origin).."\n" end
+    return love.filesystem.write(".trashcan-index",table.concat(lines))
+end
+
+local function removeTree(path)
+    local info = love.filesystem.getInfo(path)
+    if not info then return true end
+    if info.type == "directory" then
+        for _,name in ipairs(love.filesystem.getDirectoryItems(path)) do
+            local ok,err = removeTree(path.."/"..name)
+            if not ok then return nil,err end
+        end
+    end
+    return love.filesystem.remove(path)
+end
+
+local function refreshDrive(directory)
+    local windows={}
+    for id,g in minGUI_each_gadget() do
+        if g.tp==MG_WINDOW and g.driveDirectory==directory then windows[#windows+1]=id end
+    end
+    for _,id in ipairs(windows) do
+        local old=minGUI.gtree[id].driveScrollarea
+        local area=GEM_create_drive_scrollarea(id,directory)
+        if area then
+            if old and minGUI.gtree[old] then minGUI:delete_gadget(old) end
+            _G[directory:upper().."_DRIVE_SCROLLAREA"]=area
+        end
+    end
+end
+
+function GEM_empty_trashcan()
+    local index=trashIndex()
+    local ok,err=true
+    for _,name in ipairs(love.filesystem.getDirectoryItems("Trashcan")) do
+        local path="Trashcan/"..name
+        local removed,reason=removeTree(path)
+        if removed then index[path]=nil else ok,err=nil,reason;break end
+    end
+    local saved,reason=saveTrashIndex(index)
+    refreshDrive("Trashcan")
+    if not ok or not saved then love.window.showMessageBox("Trashcan",tostring(err or reason),"error") end
+    return ok and saved
+end
+
+function GEM_restore_trash_item(sourceID)
+    local source=minGUI.gtree[sourceID]
+    if not source or not source.filePath or not source.filePath:match("^Trashcan/[^/]+$") then return end
+    local index=trashIndex()
+    local origin=index[source.filePath]
+    if not origin then love.window.showMessageBox("Trashcan","Original location is unknown for this entry.","error");return end
+    local directory,name=origin:match("^(.*)/([^/]+)$")
+    local ready,reason=love.filesystem.createDirectory(directory)
+    if not ready then love.window.showMessageBox("Trashcan",tostring(reason),"error");return end
+    local path=source.filePath
+    local copied,destination=GEM_drop_drive_item(sourceID,nil,directory,name)
+    if not copied then return end
+    local ok,err=removeTree(path)
+    if ok then index[path]=nil;local saved,reason=saveTrashIndex(index);if not saved then err=reason end end
+    refreshDrive(directory);refreshDrive("Trashcan")
+    if err then love.window.showMessageBox("Trashcan",tostring(err),"error") end
+    return ok,destination
+end
+
+-- Move an entry into Trashcan; remove the source only after a successful copy.
+function GEM_trash_drive_item(sourceID)
+    local source = minGUI.gtree[sourceID]
     if not source or not source.filePath then return end
-    while target and not (target.tp == MG_WINDOW and target.driveDirectory) do
+    local window = minGUI.gtree[source.parent]
+    while window and not (window.tp == MG_WINDOW and window.driveDirectory) do
+        window = minGUI.gtree[window.parent]
+    end
+    if not window or window.driveDirectory == "Trashcan" then return end
+    local path = source.filePath
+    -- Only delete an entry inside its owning drive, never the drive itself.
+    if path:sub(1, #window.driveDirectory + 1) ~= window.driveDirectory .. "/"
+        or path:find("/../", 1, true) or path:sub(-3) == "/.." then return end
+    local copied, destination = GEM_drop_drive_item(sourceID, nil, "Trashcan")
+    if not copied then return nil end
+    local index=trashIndex()
+    index[destination]=path
+    local saved,reason=saveTrashIndex(index)
+    if not saved then
+        love.window.showMessageBox("Trashcan",tostring(reason),"error")
+        refreshDrive("Trashcan")
+        return nil
+    end
+    local function removeEntry(entryPath)
+        local info = love.filesystem.getInfo(entryPath)
+        if not info then return true end
+        if info.type == "directory" then
+            for _, child in ipairs(love.filesystem.getDirectoryItems(entryPath)) do
+                local ok, err = removeEntry(entryPath .. "/" .. child)
+                if not ok then return nil, err end
+            end
+        end
+        return love.filesystem.remove(entryPath)
+    end
+    local ok, err = removeEntry(path)
+    local oldArea = window.driveScrollarea
+    local area = GEM_create_drive_scrollarea(window.num, window.driveDirectory)
+    if area then
+        if oldArea and minGUI.gtree[oldArea] then minGUI:delete_gadget(oldArea) end
+        _G[window.driveDirectory:upper() .. "_DRIVE_SCROLLAREA"] = area
+    end
+    local trashWindows = {}
+    for id, gadget in minGUI_each_gadget() do
+        if gadget.tp == MG_WINDOW and gadget.driveDirectory == "Trashcan" then trashWindows[#trashWindows + 1] = id end
+    end
+    for _, id in ipairs(trashWindows) do
+        local trash = minGUI.gtree[id]
+        local previous = trash.driveScrollarea
+        local refreshed = GEM_create_drive_scrollarea(id, "Trashcan")
+        if refreshed then
+            if previous and minGUI.gtree[previous] then minGUI:delete_gadget(previous) end
+            TRASHCAN_SCROLLAREA = refreshed
+        end
+    end
+    if not ok then love.window.showMessageBox("Trashcan", tostring(err or "Unable to remove source " .. path), "error") end
+    return ok, destination
+end
+
+-- Copy the disk entry represented by an icon, then rebuild the destination grid.
+function GEM_drop_drive_item(sourceID, targetID, destinationDirectory, destinationName)
+    local source, target = minGUI.gtree[sourceID], destinationDirectory and {driveDirectory=destinationDirectory} or minGUI.gtree[targetID]
+    if not source or not source.filePath then return end
+    while target and not (target.driveDirectory and (target.tp == MG_WINDOW or destinationDirectory)) do
         target = minGUI.gtree[target.parent]
     end
     if not target then return end
+    if target.driveDirectory == "Trashcan" and not destinationDirectory then return GEM_trash_drive_item(sourceID) end
     local sourcePath, directory = source.filePath, target.driveDirectory
     local sourceDirectory, name = sourcePath:match("^(.*)/([^/]+)$")
+    name = destinationName or name
     if not name or sourceDirectory == directory then return end
     if directory == sourcePath or directory:sub(1, #sourcePath + 1) == sourcePath .. "/" then return end
     local destination = directory .. "/" .. name
@@ -129,7 +309,7 @@ function GEM_drop_drive_item(sourceID, targetID)
     end
     local ok, err = copyEntry(sourcePath, destination)
     local oldArea = target.driveScrollarea
-    local area = GEM_create_drive_scrollarea(target.num, directory)
+    local area = target.num and GEM_create_drive_scrollarea(target.num, directory)
     if area then
         if oldArea and minGUI.gtree[oldArea] then minGUI:delete_gadget(oldArea) end
         _G[directory:upper() .. "_DRIVE_SCROLLAREA"] = area

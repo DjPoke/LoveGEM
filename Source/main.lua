@@ -30,6 +30,8 @@ function love.load()
 	PLAY_DRIVE_WINDOW = nil
 	RELAX_DRIVE_WINDOW = nil
 	
+	TRASHCAN_WINDOW = nil
+	
 	CONTEXT_MENU = nil
 	CONTEXT_MENU_INFO = nil
 
@@ -74,14 +76,18 @@ function love.load()
 	icon[2] = love.graphics.newImage("icons/work_drive.png")
 	icon[3] = love.graphics.newImage("icons/play_drive.png")
 	icon[4] = love.graphics.newImage("icons/relax_drive.png")
+	icon[5] = love.graphics.newImage("icons/trashcan.png")
 
 	minGUI_gadget[1] = minGUI:add_image(32, 32, 128, 128, icon[1], nil, BASE_WINDOW)
 	minGUI_gadget[2] = minGUI:add_image(192, 32, 128, 128, icon[2], nil, BASE_WINDOW)
 	minGUI_gadget[3] = minGUI:add_image(352, 32, 128, 128, icon[3], nil, BASE_WINDOW)
 	minGUI_gadget[4] = minGUI:add_image(512, 32, 128, 128, icon[4], nil, BASE_WINDOW)
+	minGUI_gadget[5] = minGUI:add_image(32, 768, 128, 128, icon[5], nil, BASE_WINDOW)
+
+	minGUI.gtree[minGUI_gadget[5]].imageDropTarget = true
 
 	-- Drive launchers preserve window focus until their click opens or raises a drive.
-	for i = 1, 4 do
+	for i = 1, 5 do
 		minGUI.gtree[minGUI_gadget[i]].preserveWindowFocus = true
 	end
 
@@ -190,7 +196,11 @@ function love.update(dt)
 	local gadget, event, source, drop, info = minGUI:get_gadget_events()
 	local contextMenu, contextItem = minGUI:get_context_menu_events()
 	if contextMenu == CONTEXT_MENU and contextMenu ~= nil and CONTEXT_MENU_INFO then
-		if contextItem == 1 then
+		if CONTEXT_MENU_INFO.action == "empty" and contextItem == 1 then
+			GEM_empty_trashcan()
+		elseif CONTEXT_MENU_INFO.action == "restore" and contextItem == 1 then
+			GEM_restore_trash_item(CONTEXT_MENU_INFO.source)
+		elseif contextItem == 1 then
 			-- Run uses the same loading/parsing path as a double-click.
 			if gadget then
 				table.insert(minGUI.gstack, 1, {eventGadget = gadget, eventType = event, eventSource = source, eventDrop = drop})
@@ -209,19 +219,27 @@ function love.update(dt)
 	if gadget ~= nil then
 		-- left click on a gadget ?
 		if event == MG_EVENT_DRAG_DROPPED then
-			GEM_drop_drive_item(source, gadget)
+			if gadget == minGUI_gadget[5] then
+				GEM_trash_drive_item(source)
+			else
+				GEM_drop_drive_item(source, gadget)
+			end
 		elseif event == MG_EVENT_LEFT_MOUSE_CLICK then
 			if gadget == DESKTOP_INFOS_WINDOW_OK then
 				if DESKTOP_INFOS_WINDOW and minGUI.gtree[DESKTOP_INFOS_WINDOW] then
 					minGUI:delete_gadget(DESKTOP_INFOS_WINDOW)
 				end
 				DESKTOP_INFOS_WINDOW, DESKTOP_INFOS_WINDOW_OK = nil, nil
+			elseif info and info.scrollarea and info.filePath
+				and love.filesystem.getInfo(info.filePath, "directory") then
+				GEM_open_folder(info.filePath)
 			else
 				local drives = {
 					{gadget = minGUI_gadget[1], variable = "SWAP_DRIVE_WINDOW", scrollarea = "SWAP_DRIVE_SCROLLAREA", directory = "Swap", title = "Swap Drive", x = 0, y = 192},
 					{gadget = minGUI_gadget[2], variable = "WORK_DRIVE_WINDOW", scrollarea = "WORK_DRIVE_SCROLLAREA", directory = "Work", title = "Work Drive", x = 64, y = 256},
 					{gadget = minGUI_gadget[3], variable = "PLAY_DRIVE_WINDOW", scrollarea = "PLAY_DRIVE_SCROLLAREA", directory = "Play", title = "Play Drive", x = 128, y = 320},
-					{gadget = minGUI_gadget[4], variable = "RELAX_DRIVE_WINDOW", scrollarea = "RELAX_DRIVE_SCROLLAREA", directory = "Relax", title = "Relax Drive", x = 192, y = 384}
+					{gadget = minGUI_gadget[4], variable = "RELAX_DRIVE_WINDOW", scrollarea = "RELAX_DRIVE_SCROLLAREA", directory = "Relax", title = "Relax Drive", x = 192, y = 384},
+					{gadget = minGUI_gadget[5], variable = "TRASHCAN_WINDOW", scrollarea = "TRASHCAN_SCROLLAREA", directory = "Trashcan", title = "Trashcan", x = 256, y = 448}
 				}
 				for _, drive in ipairs(drives) do
 					if gadget == drive.gadget then
@@ -258,7 +276,16 @@ function love.update(dt)
 				end
 			end
 		elseif event == MG_EVENT_RIGHT_MOUSE_CLICK then
-			-- show a context menu if we right click on a BASIC icon
+			local trashItem = info and info.scrollarea and info.filePath
+				and info.filePath:match("^Trashcan/[^/]+$")
+			if gadget == minGUI_gadget[5] or trashItem then
+				if CONTEXT_MENU and minGUI.gtree[CONTEXT_MENU] then minGUI:delete_gadget(CONTEXT_MENU) end
+				local action = trashItem and "restore" or "empty"
+				local parent = trashItem and TRASHCAN_WINDOW or BASE_WINDOW
+				CONTEXT_MENU = minGUI:add_context_menu({trashItem and "Restore" or "Empty"}, parent)
+				CONTEXT_MENU_INFO = {action = action, source = gadget}
+				if CONTEXT_MENU then minGUI:show_context_menu(CONTEXT_MENU) end
+			else
 			if info and info.scrollarea and info.fileName and info.fileName:lower():sub(-4) == ".bas"
 				and not GEMBASIC_running_prog then
 
@@ -279,6 +306,7 @@ function love.update(dt)
 				CONTEXT_MENU = minGUI:add_context_menu({"Run", "-", "Edit", "-", "Delete"}, parent_window)
 				CONTEXT_MENU_INFO = {fileName = info.fileName, filePath = info.filePath, scrollarea = info.scrollarea}
 				if CONTEXT_MENU then minGUI:show_context_menu(CONTEXT_MENU) end
+			end
 			end
 		end
 	end
