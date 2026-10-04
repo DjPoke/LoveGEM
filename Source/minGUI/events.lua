@@ -250,6 +250,19 @@ function minGUI_update_events(dt)
 	if minGUI_update_context_menu() then return end
 	if minGUI_update_choices() then return end
 
+    -- Consume the whole border click so gadget hit-testing cannot clear editor focus.
+    if minGUI.desktopBorderClick then
+        if not minGUI.mouse.mbtn[MG_LEFT_BUTTON] and not minGUI.mouse.mbtn[MG_RIGHT_BUTTON] then
+            minGUI.desktopBorderClick = nil
+        end
+        return
+    end
+    if (minGUI.mouse.mpressed[MG_LEFT_BUTTON] or minGUI.mouse.mpressed[MG_RIGHT_BUTTON])
+        and minGUI_pointer_on_desktop_border() then
+        minGUI.desktopBorderClick = true
+        return
+    end
+
     local selectionHandled = minGUI_update_image_selection()
     local gadgetDragHandled = selectionHandled or minGUI_update_gadget_drag()
     local windowDragHandled = minGUI_update_window_drag()

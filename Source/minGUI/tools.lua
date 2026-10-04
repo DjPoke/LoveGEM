@@ -102,14 +102,33 @@ function minGUI_each_interactive_gadget(reverse)
     end
 end
 
+-- Desktop borders are decoration; clicking them does not activate a window.
+function minGUI_pointer_on_desktop_border()
+    for id, window in minGUI_each_gadget(true) do
+        if window.tp == MG_WINDOW then
+            local ox, oy = minGUI_get_parent_gadget_offset(id)
+            local sx, sy, sw, sh = minGUI_get_gadget_parents_scissor(window.parent)
+            local x, y = minGUI.mouse.x - ox - window.x, minGUI.mouse.y - oy - window.y
+            if x >= 0 and x < window.width and y >= 0 and y < window.height
+                and minGUI.mouse.x >= sx and minGUI.mouse.x < sx + sw
+                and minGUI.mouse.y >= sy and minGUI.mouse.y < sy + sh then
+                local border = MG_WINDOW_BORDER_WIDTH
+                return window.isDesktop == true and (x < border or y < border
+                    or x >= window.width - border or y >= window.height - border)
+            end
+        end
+    end
+    return false
+end
+
 function minGUI_activate_window_at_pointer()
+    if minGUI_pointer_on_desktop_border() then return end
     local active = minGUI_active_window()
-    -- An open menu popup can extend beyond its owning window.
-    for _, menu in minGUI_each_interactive_gadget() do
-        if menu.tp == MG_INTERNAL_MENU and menu.menu.selected > 0 then
-            local x, y, width, height = minGUI_menu_popup_geometry(menu)
-            if minGUI.mouse.x >= x and minGUI.mouse.x < x + width
-                and minGUI.mouse.y >= y and minGUI.mouse.y < y + height then return end
+    -- A menu acts on the current window without activating its ancestor desktop.
+    for _, menu in minGUI_each_interactive_gadget(true) do
+        if menu.tp == MG_INTERNAL_MENU then
+            local _, _, inside = minGUI_menu_hit(menu)
+            if inside then return end
         end
     end
     for id, window in minGUI_each_gadget(true) do
@@ -120,18 +139,6 @@ function minGUI_activate_window_at_pointer()
             if x >= ox + window.x and x < ox + window.x + window.width
                 and y >= oy + window.y and y < oy + window.y + window.height
                 and x >= sx and x < sx + sw and y >= sy and y < sy + sh then
-                -- Launcher images act on another window without activating the desktop.
-                for childID, child in minGUI_each_gadget(true) do
-                    if child.parent == id and child.preserveWindowFocus then
-                        local cx, cy = minGUI_get_parent_gadget_offset(childID)
-                        local clipX, clipY, clipW, clipH = minGUI_get_gadget_parents_scissor(id)
-                        if x >= cx + child.x and x < cx + child.x + child.width
-                            and y >= cy + child.y and y < cy + child.y + child.height
-                            and x >= clipX and x < clipX + clipW and y >= clipY and y < clipY + clipH then
-                            return id
-                        end
-                    end
-                end
                 if active ~= id then
                     minGUI:set_window_on_top(id)
                 end
@@ -388,6 +395,19 @@ function minGUI_menu_hit(w)
     if mx >= sx and mx < sx + sw and my >= sy and my < sy + sh
         and mx >= ox + w.x and mx < ox + w.x + w.width
         and my >= oy + w.y and my < oy + w.y + w.height then
+        -- Reject menu bars obscured by a higher window, even on the active branch.
+        for id, window in minGUI_each_gadget(true) do
+            if id == w.num then break end
+            if window.tp == MG_WINDOW then
+                local wx, wy = minGUI_get_parent_gadget_offset(id)
+                local cx, cy, cw, ch = minGUI_get_gadget_parents_scissor(window.parent)
+                if mx >= wx + window.x and mx < wx + window.x + window.width
+                    and my >= wy + window.y and my < wy + window.y + window.height
+                    and mx >= cx and mx < cx + cw and my >= cy and my < cy + ch then
+                    return nil, nil, false
+                end
+            end
+        end
         local x = ox + w.x
         for i, entry in ipairs(w.array) do
             local width = minGUI.font[minGUI.numFont]:getWidth(" " .. entry.head_menu .. " ")

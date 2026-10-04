@@ -39,7 +39,10 @@ local function evaluate(node, state)
         if op=='and' and not truth(a) then return false end
         if op=='or' and truth(a) then return true end
         local b=evaluate(node.right,state)
-        if op=='+' then return a+b elseif op=='-' then return a-b
+        if op=='+' then
+            if type(a)=='string' and type(b)=='string' then return a..b end
+            return a+b
+        elseif op=='-' then return a-b
         elseif op=='*' then return a*b elseif op=='/' or op=='mod' then
             if b==0 then error('Division by zero',0) end
             if op=='/' then return a/b else return a%b end
@@ -162,14 +165,17 @@ local function command(node,state)
     else error('Unsupported command: '..node.name,0) end
 end
 
-function GEMBASIC_init(ast)
+function GEMBASIC_init(ast, filename)
     GEMBASIC_running_prog=false
     GEMBASIC_finished=false
     if not ast or ast.kind~='program' then return nil,'Expected parsed BASIC program' end
     local ok,code=pcall(compile,ast)
     if not ok then return nil,code end
     graphics_cursor_x, graphics_cursor_y=0,0
-    GEMBASIC_state={code=code,pc=1,variables={},loops={},returns={},mode=1,pen={255,255,255}}
+    local programPath = filename or ""
+    if type(programPath) ~= "string" then return nil, 'Expected a program file path' end
+    local programDirectory = programPath:match("^(.*[/])") or ""
+    GEMBASIC_state={code=code,pc=1,variables={exepath=programDirectory,exefile=programPath},loops={},returns={},mode=1,pen={255,255,255}}
     love.graphics.push('all')
     love.graphics.origin()
     love.graphics.setCanvas(GEMBASIC_canvas)

@@ -3,37 +3,32 @@ function GEM_create_drives()
 	local minGUI_info = love.filesystem.getInfo("Swap")
 	if not minGUI_info then love.filesystem.createDirectory("Swap") end
 	
-	minGUI_info = love.filesystem.getInfo("Work")
-	if not minGUI_info then
-		local function copyDirectory(source, destination)
-			local ok, err = love.filesystem.createDirectory(destination)
-			if not ok then return nil, err end
-			for _, name in ipairs(love.filesystem.getDirectoryItems(source)) do
-				local from, to = source .. "/" .. name, destination .. "/" .. name
-				local info = love.filesystem.getInfo(from)
-				if info and info.type == "directory" then
-					ok, err = copyDirectory(from, to)
-				elseif info and info.type == "file" then
-					local data
-					data, err = love.filesystem.read(from)
-					if data then ok, err = love.filesystem.write(to, data)
-					else ok = nil end
-				else
-					return nil, "Unsupported example entry: " .. from
-				end
-				if not ok then return nil, err end
+	local function copyDirectory(source, destination)
+		local ok, err = love.filesystem.createDirectory(destination)
+		if not ok then return nil, err end
+		for _, name in ipairs(love.filesystem.getDirectoryItems(source)) do
+			local from, to = source .. "/" .. name, destination .. "/" .. name
+			local info = love.filesystem.getInfo(from)
+			if info and info.type == "directory" then
+				ok, err = copyDirectory(from, to)
+			elseif info and info.type == "file" then
+				local data
+				data, err = love.filesystem.read(from)
+				if data then ok, err = love.filesystem.write(to, data)
+				else ok = nil end
+			else
+				return nil, "Unsupported example entry: " .. from
 			end
-			return true
+			if not ok then return nil, err end
 		end
-		local ok, err = copyDirectory("examples/Work", "Work")
-		if not ok then love.window.showMessageBox("Work", tostring(err), "error") end
+		return true
 	end
-	
-	minGUI_info = love.filesystem.getInfo("Play")	
-	if not minGUI_info then love.filesystem.createDirectory("Play") end
-	
-	minGUI_info = love.filesystem.getInfo("Relax")	
-	if not minGUI_info then love.filesystem.createDirectory("Relax") end
+	for _, directory in ipairs({"Work", "Play", "Relax"}) do
+		if not love.filesystem.getInfo(directory) then
+			local ok, err = copyDirectory("examples/" .. directory, directory)
+			if not ok then love.window.showMessageBox(directory, tostring(err), "error") end
+		end
+	end
 	
 	minGUI_info = love.filesystem.getInfo("Trashcan")	
 	if not minGUI_info then love.filesystem.createDirectory("Trashcan") end

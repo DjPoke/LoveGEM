@@ -61,6 +61,7 @@ function love.load()
 
 	-- add default window
 	BASE_WINDOW = minGUI:add_window(320, 60, 1280, 960)
+	minGUI.gtree[BASE_WINDOW].isDesktop = true
 
 	-- add menu at the top of the window
 	MAIN_MENU = minGUI:add_menu(0, 0, 1280, 16, {
@@ -88,11 +89,6 @@ function love.load()
 	minGUI_gadget[5] = minGUI:add_image(32, 768, 128, 128, icon[5], nil, BASE_WINDOW)
 
 	minGUI.gtree[minGUI_gadget[5]].imageDropTarget = true
-
-	-- Drive launchers preserve window focus until their click opens or raises a drive.
-	for i = 1, 5 do
-		minGUI.gtree[minGUI_gadget[i]].preserveWindowFocus = true
-	end
 
 	-- load mouse pointers
 	minGUI_mouse_pointer = {
@@ -290,7 +286,7 @@ function love.update(dt)
 					if not ast then
 						love.window.showMessageBox("BASIC error", "Line " .. err.line .. ", column " .. err.column .. ": " .. err.message, "error")
 					else
-						local ok, runtimeError = GEMBASIC_init(ast)
+						local ok, runtimeError = GEMBASIC_init(ast, info.filePath)
 						if not ok then love.window.showMessageBox("BASIC error", tostring(runtimeError), "error") end
 					end
 				end
