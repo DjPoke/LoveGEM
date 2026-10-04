@@ -12,6 +12,7 @@
 require "minGUI.minGUI"
 require "GEM"
 require "file_dialogs"
+require "preferences"
 require "instructions"
 require "BASIC"
 require "lexer"
@@ -44,6 +45,16 @@ local function active_file_icons(window, selectedOnly)
     return icons
 end
 
+local function check_view_menu(item, persist)
+    for index = 1, 5 do minGUI:set_menu_item_checked(MAIN_MENU, 3, index, index == item) end
+    VIEW_MENU_CHECKED = item
+    GEM_refresh_file_windows()
+    if persist then
+        local ok, err = love.filesystem.write('.view-menu', tostring(item))
+        if not ok then love.window.showMessageBox('View', tostring(err), 'error') end
+    end
+end
+
 -- default love.load function
 function love.load()
 	-- some vars for GEM windows
@@ -65,19 +76,8 @@ function love.load()
 	-- initialize minGUI
 	minGUI_init()
 
-	-- set theme
-	minGUI:set_theme("GEM")
-
-	-- set colors
-	minGUI:set_background_color(1, 1, 1, 1)
-	minGUI:set_text_color(0, 0, 0, 1)
-	minGUI:set_inverted_text_color(1, 1, 1, 1)
-	minGUI:set_greyed_background_color(1, 1, 1, 1)
-	minGUI:set_greyed_text_color(0.5, 0.5, 0.5, 1)
-
-	-- load & set font
-	minGUI:load_font(1, "fonts/CPCMode1.ttf", 16)
-	minGUI:set_font(1)
+	-- Load the saved theme and font, or store their defaults.
+	GEM_load_preferences()
 
 	-- init array of windows & array of gadgets
 	minGUI_window = {}
@@ -92,8 +92,12 @@ function love.load()
 		{head_menu = "Desk", menu_list = {"Desktop infos..."}},
 		{head_menu = "File", menu_list = {"Edit", "Rename", "Search", "-", "New folder", "New file", "Close window", "Select all", "Select none", "-", "Delete", "-", "Quit"}},
 		{head_menu = "View", menu_list = {"Sort by name", "Sort by date", "Sort by size", "Sort by type", "Do not sort"}},
-		{head_menu = "Options", menu_list = {"Set preferences", "Desktop configuration", "Change mode"}}
+		{head_menu = "Options", menu_list = {"Set preferences"}}
 	}, nil, BASE_WINDOW)
+
+	local savedView = tonumber(love.filesystem.read('.view-menu') or '')
+	if not savedView or savedView ~= math.floor(savedView) or savedView < 1 or savedView > 5 then savedView = 5 end
+	check_view_menu(savedView, false)
 
 	-- add default canvas
 	minGUI:add_panel(0, 0, 1280, 944, nil, BASE_WINDOW)
@@ -181,6 +185,11 @@ function love.update(dt)
 	update_img_viewer()
 	update_notepad()
 	GEM_update_file_dialog()
+	local hasCheckedView = false
+	for index = 1, 5 do
+		if minGUI:get_menu_item_checked(MAIN_MENU, 3, index) then hasCheckedView = true; break end
+	end
+	if not hasCheckedView then check_view_menu(5, true) end
 
 	-- get new menu events
 	local minGUI_eventMenu, minGUI_eventSubMenu, minGUI_menuGadget = minGUI:get_menu_events()
@@ -278,6 +287,18 @@ function love.update(dt)
 		elseif minGUI_eventSubMenu == 10 then
 			love.event.quit()
 		end
+	elseif minGUI_menuGadget == MAIN_MENU and minGUI_eventMenu == 3 then
+		if minGUI_eventSubMenu >= 1 and minGUI_eventSubMenu <= 5 then check_view_menu(minGUI_eventSubMenu, true) end
+	elseif minGUI_menuGadget == MAIN_MENU and minGUI_eventMenu == 4 then
+		if minGUI_eventSubMenu == 1 then
+			-- open a little window with preferences, and an Ok button :
+			-- 1) Theme (a list gadget with minGUI/themes folders names)
+			-- 2) Font (4 option gadgets with numbers 1, 2, 3, 4)
+			-- choices are memorized, and by default, if there is no memorized file
+			-- about that, at launch of the program, the values
+			-- Theme -> GEM and Font -> 1 are stored
+			GEM_open_preferences()
+		end
 	end
 
 	-- get new gadget events
@@ -306,7 +327,9 @@ function love.update(dt)
 	-- eventGadget received ?
 	if gadget ~= nil then
 		-- left click on a gadget ?
-		if GEM_file_dialog_event(gadget, event) then
+		if GEM_preferences_event(gadget, event) then
+			-- Apply and save the Preferences choices.
+		elseif GEM_file_dialog_event(gadget, event) then
 			-- Rename and search dialogs own their controls.
 		elseif notepad_gadget_event(gadget, event) then
 			-- Notepad owns its save shortcut.

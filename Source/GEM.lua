@@ -53,6 +53,25 @@ function GEM_open_folder(path)
     return window, area
 end
 
+-- Sort each group separately so folders always precede files.
+function GEM_sort_drive_items(items, mode)
+    if not mode or mode == 5 then return end
+    table.sort(items, function(a, b)
+        local first, second
+        if mode == 2 then first, second = a.modified or 0, b.modified or 0
+        elseif mode == 3 then first, second = a.size or 0, b.size or 0
+        elseif mode == 4 then first, second = a.extension or '', b.extension or ''
+        else first, second = a.name:lower(), b.name:lower() end
+        if first ~= second then
+            if mode == 2 then return first > second end
+            return first < second
+        end
+        local an, bn = a.name:lower(), b.name:lower()
+        if an ~= bn then return an < bn end
+        return a.order < b.order
+    end)
+end
+
 -- Populate a drive with its folders, text files and BASIC programs.
 function GEM_create_drive_scrollarea(window, directory)
     local bounds = minGUI.gtree[window]
@@ -60,7 +79,7 @@ function GEM_create_drive_scrollarea(window, directory)
     local bottom = math.max(MG_WINDOW_BORDER_WIDTH, minGUI:window_footerbar_height(window))
     local width, height = bounds.width - 2 * MG_WINDOW_BORDER_WIDTH, bounds.height - top - bottom
     local items, files = {}, {}
-    for _, name in ipairs(love.filesystem.getDirectoryItems(directory)) do
+    for order, name in ipairs(love.filesystem.getDirectoryItems(directory)) do
         local info = love.filesystem.getInfo(directory .. "/" .. name)
         local icon
         if info and info.type == "directory" then
@@ -75,9 +94,13 @@ function GEM_create_drive_scrollarea(window, directory)
         end
         if icon then
             local group = info.type == "directory" and items or files
-            group[#group + 1] = {name = name, icon = icon}
+            group[#group + 1] = {name = name, icon = icon, order = order,
+                size = info.size, modified = info.modtime,
+                extension = info.type == "file" and (name:lower():match("%.([^%.]+)$") or "") or ""}
         end
     end
+    GEM_sort_drive_items(items, VIEW_MENU_CHECKED or 5)
+    GEM_sort_drive_items(files, VIEW_MENU_CHECKED or 5)
     -- Create folders first, preserving the listing order within each group.
     for _, file in ipairs(files) do items[#items + 1] = file end
 
@@ -398,4 +421,42 @@ function GEM_rename_drive_entry(path, name)
     end
     for current in pairs(directories) do refreshDrive(current) end
     return true
+end
+
+-- Rebuild all open inventories when the global View choice changes.
+function GEM_refresh_file_windows()
+    local windows = {}
+    for id, window in minGUI_each_gadget() do
+        if window.tp == MG_WINDOW and window.driveDirectory and window.driveScrollarea then
+            windows[#windows + 1] = id
+        end
+    end
+    for _, id in ipairs(windows) do
+        local window = minGUI.gtree[id]
+        local old = window.driveScrollarea
+        local area = minGUI.gtree[old]
+        local selected, focused = {}, nil
+        for iconID, icon in minGUI_each_gadget() do
+            if icon.parent == old and icon.tp == MG_IMAGE and icon.filePath then
+                if icon.selected then selected[icon.filePath] = true end
+                if minGUI.gfocus == iconID then focused = icon.filePath end
+            end
+        end
+        local scrollX, scrollY = area and area.scrollX or 0, area and area.scrollY or 0
+        local refreshed = GEM_create_drive_scrollarea(id, window.driveDirectory)
+        if refreshed then
+            if minGUI.gtree[old] then minGUI:delete_gadget(old) end
+            local newArea = minGUI.gtree[refreshed]
+            newArea.scrollX, newArea.scrollY = scrollX, scrollY
+            minGUI_scrollarea_layout(newArea)
+            for iconID, icon in minGUI_each_gadget() do
+                if icon.parent == refreshed and icon.tp == MG_IMAGE then
+                    icon.selected = selected[icon.filePath] == true
+                    if icon.filePath == focused then minGUI:set_focus(iconID) end
+                end
+            end
+            _G[window.driveDirectory:upper() .. '_DRIVE_SCROLLAREA'] = refreshed
+            if window.driveDirectory == 'Trashcan' then TRASHCAN_SCROLLAREA = refreshed end
+        end
+    end
 end

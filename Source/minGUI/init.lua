@@ -213,8 +213,39 @@ function minGUI_init()
 
 			minGUI.theme = text
 			
-			-- update theme sprites
+			-- update theme colors and sprites
+			self:load_colors()
 			self:load_sprites()
+		end,
+		-- load RGBA colors from the current theme
+		load_colors = function(self)
+			if self.exitProcess == true then return end
+
+			local colors = {
+				["background color"] = {"set_background_color", 1, 1, 1, 1},
+				["text color"] = {"set_text_color", 0, 0, 0, 1},
+				["inverted text color"] = {"set_inverted_text_color", 1, 1, 1, 1},
+				["greyed background color"] = {"set_greyed_background_color", 1, 1, 1, 1},
+				["greyed text color"] = {"set_greyed_text_color", 0.5, 0.5, 0.5, 1},
+			}
+			local data = love.filesystem.read("minGUI/themes/" .. self.theme .. "/colors.txt")
+			if data then
+				for line in data:gmatch("[^\r\n]+") do
+					local name, values = line:match("^%s*(.-)%s*:%s*(.-)%s*$")
+					local color = colors[name]
+					if color then
+						local r, g, b, a = values:match("^%s*([^,]+),%s*([^,]+),%s*([^,]+),%s*([^,]+)%s*$")
+						r, g, b, a = tonumber(r), tonumber(g), tonumber(b), tonumber(a)
+						if r and g and b and a and r >= 0 and r <= 1 and g >= 0 and g <= 1
+							and b >= 0 and b <= 1 and a >= 0 and a <= 1 then
+							color[2], color[3], color[4], color[5] = r, g, b, a
+						end
+					end
+				end
+			end
+			for _, color in pairs(colors) do
+				self[color[1]](self, color[2], color[3], color[4], color[5])
+			end
 		end,
 		-- set background color (red, green, blue, alpha)
 		set_background_color = function(self, r, g, b, a)
@@ -346,6 +377,12 @@ function minGUI_init()
 				end
 			end
 			return nil, nil
+		end,
+		set_menu_item_checked = function(self, gadget, menu, item, checked)
+			return minGUI_set_menu_item_checked(self, gadget, menu, item, checked == nil and true or checked)
+		end,
+		get_menu_item_checked = function(self, gadget, menu, item)
+			return minGUI_get_menu_item_checked(self, gadget, menu, item)
 		end,
 		-- Skip separators and stale events without delaying the next valid selection.
 		get_menu_events = function(self)
@@ -2515,7 +2552,8 @@ function minGUI_init()
 		minGUI.mouse.mreleased[i] = false
 	end
 	
-	-- load all sprites for the theme
+	-- load colors and sprites for the theme
+	minGUI:load_colors()
 	minGUI:load_sprites()
 
 	-- load default fonts

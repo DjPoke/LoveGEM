@@ -1,4 +1,4 @@
-# LoveGEM — aide BASIC
+# GEMBASIC — référence
 
 LoveGEM est un environnement GEM créé avec Löve. Cette aide décrit les commandes actuellement analysées et exécutées par son interpréteur BASIC.
 
@@ -34,7 +34,7 @@ Les chaînes acceptent notamment `\n`, `\t`, `\r`, `\"`, `\\`, les codes décima
 | --- | --- | --- |
 | `CLS` | `CLS` | Efface l'écran et remet le curseur en colonne 1, ligne 1. |
 | `MODE` | `MODE 0` ou `MODE 1` | Sélectionne la police du mode 0 ou 1. |
-| `PEN` | `PEN rouge, vert, bleu` | Définit la couleur du texte ; utilisez des composantes de 0 à 255. |
+| `PEN` | `PEN rouge, vert, bleu` | Définit la couleur du texte et des tracés ; utilisez des composantes de 0 à 255. |
 | `LOCATE` | `LOCATE colonne, ligne` | Positionne le curseur en cellules de texte, avec des entiers positifs à partir de 1. |
 | `PRINT` | `PRINT expression` | Affiche la valeur au curseur, puis avance à la ligne suivante, colonne 1. |
 | `PRINT` | `PRINT texte, x, y` | Avec exactement trois arguments dont les deux derniers sont numériques, affiche en coordonnées pixels sans déplacer le curseur. |
@@ -57,11 +57,116 @@ END
 
 `LOCATE` tient compte des dimensions de la police sélectionnée. Ses coordonnées sont distinctes des coordonnées pixels de la forme à trois arguments de `PRINT`.
 
+## Chemins du programme
+
+Deux variables sont initialisées à chaque lancement :
+
+| Variable | Valeur |
+| --- | --- |
+| `EXEPATH` | Dossier du programme, avec `/` final ; chaîne vide si le programme est à la racine. |
+| `EXEFILE` | Chemin complet du fichier `.bas` dans le système de fichiers LÖVE. |
+
+Les chemins des ressources sont relatifs au système de fichiers LÖVE, pas automatiquement au dossier du programme. Utilisez `EXEPATH` pour charger une ressource voisine :
+
+```basic
+LOADMUSIC EXEPATH + "Music.ogg", 1
+PLAYMUSIC 1
+WAITKEY
+STOPMUSIC 1
+END
+```
+
+Par exemple, pour `Play/Games/Pong/Pong.bas`, `EXEPATH` vaut `Play/Games/Pong/`.
+
+## Dessin
+
+Le canvas BASIC mesure **480 × 270 pixels**. L’origine `(0, 0)` est en haut à gauche ; X augmente vers la droite, Y vers le bas. Les coordonnées visibles vont de `(0, 0)` à `(479, 269)`. Le curseur graphique est remis à `(0, 0)` au lancement ; il est indépendant du curseur texte de `LOCATE`.
+
+| Commande | Effet |
+| --- | --- |
+| `MOVE x, y` | Positionne le curseur graphique sans dessiner. |
+| `MOVER dx, dy` | Déplace le curseur graphique relativement, sans dessiner. |
+| `PLOT x, y` | Dessine un point et positionne le curseur graphique. |
+| `PLOTR dx, dy` | Déplace le curseur relativement et dessine un point. |
+| `DRAW x, y` | Trace du curseur à `(x, y)`, puis y place le curseur. |
+| `DRAWR dx, dy` | Trace vers une position relative, puis y place le curseur. |
+
+Les lignes incluent leurs deux extrémités. Utilisez `PEN r, g, b` pour leur couleur. `CLS` remet le curseur texte à `(1, 1)`, sans déplacer le curseur graphique.
+
+```basic
+CLS
+PEN 255, 255, 255
+MOVE 20, 20
+DRAWR 100, 0
+DRAWR 0, 60
+DRAWR -100, 0
+DRAWR 0, -60
+PLOT 70, 50
+END
+```
+
+## Images et sprites
+
+| Commande | Effet |
+| --- | --- |
+| `LOADIMAGE chemin, numero` | Charge une image dans un emplacement numéroté. |
+| `DRAWIMAGE numero, x, y` | Dessine l’image chargée à sa taille native. |
+| `LOADSPRITE chemin, numero, largeur, hauteur` | Découpe une spritesheet en frames de cette taille. |
+| `DRAWSPRITE numero, frame, x, y` | Dessine une frame du sprite chargé. |
+
+`LOADSPRITE` exige des dimensions entières positives qui divisent exactement celles de l’image, et un numéro de sprite entier positif ou nul. Les frames commencent à **1**, de gauche à droite, puis de haut en bas. Charger une image ou un sprite ne l’affiche pas : utilisez la commande de dessin correspondante.
+
+`DRAWSPRITE` accepte de quatre à neuf arguments, dans cet ordre :
+
+```basic
+DRAWSPRITE numero, frame, x, y, rotation, echelleX, echelleY, origineX, origineY
+```
+
+Les arguments après Y sont facultatifs. Rotation en radians : défaut `0`. Échelle X : défaut `1`. Échelle Y : défaut de l’échelle X. Origine X et Y : défaut `0`. L’origine est exprimée dans la frame. Les images et sprites utilisent la couleur `PEN` courante comme teinte ; choisissez le blanc pour conserver leurs couleurs.
+
+```basic
+PEN 255, 255, 255
+LOADIMAGE EXEPATH + "Background.png", 1
+DRAWIMAGE 1, 0, 0
+LOADSPRITE EXEPATH + "Sprites.png", 1, 32, 32
+DRAWSPRITE 1, 1, 100, 80
+DRAWSPRITE 1, 2, 160, 80, 0, 2, 2
+END
+```
+
+Cet exemple suppose que les images existent et que `Sprites.png` contient au moins deux frames de 32 × 32 pixels. Une frame absente ou un fichier impossible à charger produit une erreur BASIC.
+
+## Musiques et sons
+
+| Commande | Effet |
+| --- | --- |
+| `LOADMUSIC chemin, numero` | Charge une musique en streaming. |
+| `PLAYMUSIC numero` | Lance la musique chargée. |
+| `STOPMUSIC numero` | Arrête la musique. |
+| `LOOPMUSIC numero, valeur` | Active la boucle avec `1`/`TRUE`, la désactive avec `0`/`FALSE`. |
+| `LOADSOUND chemin, numero` | Charge un son en mémoire. |
+| `PLAYSOUND numero` | Lance le son chargé. |
+| `STOPSOUND numero` | Arrête le son. |
+
+Les emplacements des images, sprites, musiques et sons sont indépendants. Chargez la ressource avant de l’utiliser. Les lectures audio continuent pendant les instructions suivantes : `PLAYMUSIC` et `PLAYSOUND` n’attendent pas la fin du son. La musique ne boucle pas par défaut ; configurez `LOOPMUSIC` explicitement. `END` n’arrête pas automatiquement l’audio : utilisez les commandes d’arrêt.
+
+```basic
+LOADMUSIC EXEPATH + "Music.ogg", 1
+LOOPMUSIC 1, 1
+PLAYMUSIC 1
+LOADSOUND EXEPATH + "Beep.wav", 1
+PLAYSOUND 1
+WAITKEY
+STOPSOUND 1
+STOPMUSIC 1
+END
+```
+
 ## Expressions et fonctions
 
 | Opérateurs | Usage |
 | --- | --- |
-| `+`, `-`, `*`, `/` | Calculs numériques. `+` et `-` peuvent aussi être unaires. |
+| `+`, `-`, `*`, `/` | Calculs numériques ; `+` concatène aussi deux chaînes. `+` et `-` peuvent être unaires. |
 | `MOD` | Reste de la division : `7 MOD 3`. |
 | `POW` | Puissance : `2 POW 3`. |
 | `=`, `==`, `<>`, `~=`, `<`, `>`, `<=`, `>=` | Comparaisons. |

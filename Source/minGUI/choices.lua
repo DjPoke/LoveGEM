@@ -108,14 +108,18 @@ function minGUI_draw_choice(g, popup)
 	end
 	love.graphics.intersectScissor(x,y,w,h)
 	love.graphics.setFont(minGUI.font[minGUI.numFont])
-	love.graphics.setColor(1,1,1,1);love.graphics.rectangle('fill',x,y,w,h)
+	local background = minGUI.invtxtcolor
+	love.graphics.setColor(background.r, background.g, background.b, background.a)
+	love.graphics.rectangle('fill',x,y,w,h)
 	local list = popup or g.tp == MG_LIST
 	local scroll = list and minGUI.gtree[g.scrollbarID] ~= nil
 	if list then
 		for i=g.first,math.min(#g.items,g.first+rows-1) do
 			local yy = y+1+(i-g.first)*row
 			if i == g.value then
-				love.graphics.setColor(0.15,0.35,0.65,1);love.graphics.rectangle('fill',x+1,yy,w-(scroll and minGUI.gtree[g.scrollbarID].size + 2 or 2),row)
+				local selection = minGUI.bgcolor
+				love.graphics.setColor(selection.r, selection.g, selection.b, selection.a)
+				love.graphics.rectangle('fill',x+1,yy,w-(scroll and minGUI.gtree[g.scrollbarID].size + 2 or 2),row)
 				love.graphics.setColor(1,1,1,1)
 			else love.graphics.setColor(0,0,0,1) end
 			love.graphics.print(g.items[i],x+4,yy+4)
@@ -124,7 +128,7 @@ function minGUI_draw_choice(g, popup)
 	love.graphics.setColor(0,0,0,1);love.graphics.setLineWidth(minGUI.gfocus==g.num and 2 or 1)
 	love.graphics.rectangle('line',x+1,y+1,w-2,h-2)
 	if not list then
-		love.graphics.setColor(0.85,0.85,0.85,1);love.graphics.rectangle('fill',x+w-20,y+1,19,h-2)
+		love.graphics.setColor(0.5,0.5,0.5,1);love.graphics.rectangle('fill',x+w-20,y+1,19,h-2)
 		love.graphics.setColor(0,0,0,1)
 		local cx, cy = x + w - 10, y + h / 2
 		love.graphics.polygon('fill', cx - 5, cy - 3, cx + 5, cy - 3, cx, cy + 3)

@@ -15,12 +15,9 @@ require "minGUI.draw"
 require "minGUI.tools"
 require "minGUI.editor"
 require "minGUI.spin"
-
 require "minGUI.scrollarea"
 require "minGUI.dragdrop"
 require "minGUI.contextmenu"
-
 require "minGUI.keyboard"
 require "minGUI.selection"
-
 require "minGUI.choices"

@@ -1,0 +1,5 @@
+background color:0.5,0.5,0.5,1
+text color:0,0,0,1
+inverted text color:1,1,1,1
+greyed background color:0.5,0.5,0.5,1
+greyed text color:0.25,0.25,0.25,1

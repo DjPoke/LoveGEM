@@ -833,7 +833,16 @@ function minGUI_draw_internal_gadget(num, ox, oy, popupOnly)
 					end
 
 					-- draw the text on the gadget's canvas
-					love.graphics.print(" " .. w.array[w.menu.selected].menu_list[i] .. " ", 0, 2 + (rowHeight * (i - 1)))
+                    local entry = w.array[w.menu.selected]
+                    local padding = entry.checked and 20 or 0
+                    love.graphics.print(" " .. entry.menu_list[i] .. " ", padding, 2 + (rowHeight * (i - 1)))
+                    if entry.checked and entry.checked[i] then
+                        local y = 1 + rowHeight * (i - 1) + rowHeight / 2
+                        love.graphics.push("all")
+                        love.graphics.setLineWidth(2)
+                        love.graphics.line(5, y, 9, y + 4, 16, y - 4)
+                        love.graphics.pop()
+                    end
 				else
 					-- set the right color
 					love.graphics.setColor(w.rpen, w.gpen, w.bpen, w.apen)

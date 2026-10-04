@@ -406,7 +406,7 @@ function minGUI_menu_popup_geometry(w)
     end
     local items = w.array[w.menu.selected].menu_list
     for _, label in ipairs(items) do
-        width = math.max(width, font:getWidth(" " .. label .. " "))
+        width = math.max(width, font:getWidth(" " .. label .. " ") + (w.array[w.menu.selected].checked and 20 or 0))
     end
     local rowHeight = math.max(w.height, font:getHeight()) + 2
     local height = rowHeight * #items + 2
@@ -464,4 +464,32 @@ function minGUI_menu_item_index(items, row)
         if items[i] ~= "-" then index = index + 1 end
     end
     return index
+end
+
+-- Check APIs use the same separator-free indices as menu events.
+local function menuCheckEntry(self, gadget, menu, item)
+    local g = self.gtree[gadget]
+    local entry = g and g.tp == MG_INTERNAL_MENU and g.array[menu]
+    if not entry or type(item) ~= 'number' or item < 1 or item ~= math.floor(item) then return end
+    local index = 0
+    for row, label in ipairs(entry.menu_list) do
+        if label ~= '-' then
+            index = index + 1
+            if index == item then return entry, row end
+        end
+    end
+end
+
+function minGUI_set_menu_item_checked(self, gadget, menu, item, checked)
+    local entry, row = menuCheckEntry(self, gadget, menu, item)
+    if not entry or type(checked) ~= 'boolean' then return nil, 'Invalid menu item or checked value' end
+    entry.checked = entry.checked or {}
+    entry.checked[row] = checked
+    return true
+end
+
+function minGUI_get_menu_item_checked(self, gadget, menu, item)
+    local entry, row = menuCheckEntry(self, gadget, menu, item)
+    if not entry then return nil end
+    return entry.checked and entry.checked[row] == true or false
 end
