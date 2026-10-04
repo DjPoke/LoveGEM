@@ -336,25 +336,29 @@ function minGUI_init()
 			self.contextMenu = nil
 		end,
 		get_context_menu_events = function(self)
-			if self.exitProcess or #self.cstack == 0 then return nil, nil end
-			local event = table.remove(self.cstack, 1)
-			return event.menu, event.item
-		end,
-		-- get menu events
-		get_menu_events = function(self)
-			-- don't execute next instructions in case of exit process is true
-			if minGUI.exitProcess == true then return end
-			
-			if #minGUI.mstack ~= 0 then
-				local eventMenu = minGUI.mstack[1].eventMenu
-				local eventSubMenu = minGUI.mstack[1].eventSubMenu
-				local eventGadget = minGUI.mstack[1].eventGadget
-				
-				table.remove(minGUI.mstack, 1)
-
-				return eventMenu, eventSubMenu, eventGadget
+			if self.exitProcess then return nil, nil end
+			while #self.cstack > 0 do
+				local event = table.remove(self.cstack, 1)
+				local menu = self.gtree[event.menu]
+				local label = menu and menu.items and menu.items[event.item]
+				if label and label ~= "-" then
+					return event.menu, minGUI_menu_item_index(menu.items, event.item)
+				end
 			end
-
+			return nil, nil
+		end,
+		-- Skip separators and stale events without delaying the next valid selection.
+		get_menu_events = function(self)
+			if self.exitProcess then return nil, nil end
+			while #self.mstack > 0 do
+				local event = table.remove(self.mstack, 1)
+				local gadget = self.gtree[event.eventGadget]
+				local menu = gadget and gadget.array and gadget.array[event.eventMenu]
+				local label = menu and menu.menu_list[event.eventSubMenu]
+				if label and label ~= "-" then
+					return event.eventMenu, minGUI_menu_item_index(menu.menu_list, event.eventSubMenu), event.eventGadget
+				end
+			end
 			return nil, nil
 		end,
 		get_timer_events = function(self)
@@ -376,6 +380,7 @@ function minGUI_init()
 			-- don't execute next instructions in case of exit process is true
 			if minGUI.exitProcess == true then return end
 			
+			if not minGUI_focus_allowed(num) then return end
 			minGUI.gfocus = num
 		end,
 		-- Activate and raise a window within its stacking priority.
@@ -385,6 +390,8 @@ function minGUI_init()
 				self:runtime_error("[set_window_on_top]Wrong window number " .. tostring(num))
 				return
 			end
+			local priority = minGUI_priority_window()
+			if priority and priority ~= num then return end
 			local highest = self.lastGadgetID
 			for _, gadget in minGUI_each_gadget() do
 				highest = math.max(highest, gadget.zOrder or 0)
@@ -1729,7 +1736,7 @@ function minGUI_init()
 						minGUI_shift_text(num, text)
 						
 						-- set the focus to the last editable gadget
-						minGUI.gfocus = num
+						minGUI:set_focus(num)
 						
 						return num
 					else
@@ -1976,7 +1983,7 @@ function minGUI_init()
 						minGUI_shift_text(num, minGUI.gtree[num].text)
 
 						-- set the focus to the last editable gadget
-						minGUI.gfocus = num
+						minGUI:set_focus(num)
 						
 						return num
 					else
@@ -2058,7 +2065,7 @@ function minGUI_init()
 						end
 						
 						-- set the focus to the last editable gadget
-						minGUI.gfocus = num
+						minGUI:set_focus(num)
 						
 						-- position cursor at end
 						minGUI:set_cursor_xy(num, -1, -1)

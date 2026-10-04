@@ -11,6 +11,7 @@
 -- require minGUI & other stuffs
 require "minGUI.minGUI"
 require "GEM"
+require "file_dialogs"
 require "instructions"
 require "BASIC"
 require "lexer"
@@ -19,6 +20,29 @@ require "notepad"
 require "img_viewer"
 require "snd_player"
 require "beep"
+
+-- Inventory every file icon owned by the active window, including clipped icons.
+local function active_file_icons(window, selectedOnly)
+    local icons = {}
+    for id, image in minGUI_each_gadget() do
+        if image.tp == MG_IMAGE and image.filePath then
+            local parent, inScrollarea = image.parent, false
+            while parent and minGUI.gtree[parent] do
+                local container = minGUI.gtree[parent]
+                if container.tp == MG_SCROLLAREA then inScrollarea = true end
+                if container.tp == MG_WINDOW then
+                    if parent == window and inScrollarea
+                        and (not selectedOnly or image.selected or minGUI.gfocus == id) then
+                        icons[#icons + 1] = id
+                    end
+                    break
+                end
+                parent = container.parent
+            end
+        end
+    end
+    return icons
+end
 
 -- default love.load function
 function love.load()
@@ -66,9 +90,9 @@ function love.load()
 	-- add menu at the top of the window
 	MAIN_MENU = minGUI:add_menu(0, 0, 1280, 16, {
 		{head_menu = "Desk", menu_list = {"Desktop infos..."}},
-		{head_menu = "File", menu_list = {"Open", "Infos/Rename", "Search", "-", "New folder", "Close window", "Select all", "Select none", "-", "Delete", "-", "Quit"}},
-		{head_menu = "View", menu_list = {"Show as icons", "Show as text", "-", "Sort by name", "Sort by date", "Sort by size", "Sort by type", "Do not sort", "-", "Define background..."}},
-		{head_menu = "Options", menu_list = {"Install icon", "Install application", "Install devices", "Remove desktop icon", "-", "Set preferences", "Desktop configuration", "Change resolution", "-", "Load desktop", "Save desktop"}}
+		{head_menu = "File", menu_list = {"Edit", "Rename", "Search", "-", "New folder", "New file", "Close window", "Select all", "Select none", "-", "Delete", "-", "Quit"}},
+		{head_menu = "View", menu_list = {"Sort by name", "Sort by date", "Sort by size", "Sort by type", "Do not sort"}},
+		{head_menu = "Options", menu_list = {"Set preferences", "Desktop configuration", "Change mode"}}
 	}, nil, BASE_WINDOW)
 
 	-- add default canvas
@@ -156,6 +180,7 @@ function love.update(dt)
 	minGUI_update_events(dt)
 	update_img_viewer()
 	update_notepad()
+	GEM_update_file_dialog()
 
 	-- get new menu events
 	local minGUI_eventMenu, minGUI_eventSubMenu, minGUI_menuGadget = minGUI:get_menu_events()
@@ -189,7 +214,68 @@ function love.update(dt)
 			minGUI:add_label(144, 235, 352, 25, minGUI_txt, minGUI_flags, DESKTOP_INFOS_WINDOW)
 		end
 	elseif minGUI_menuGadget == MAIN_MENU and minGUI_eventMenu == 2 then
-		if minGUI_eventSubMenu == 12 then
+		local window = minGUI_active_window()
+		local isFileWindow = window and window ~= BASE_WINDOW and minGUI.gtree[window]
+		if minGUI_eventSubMenu == 1 then
+			-- if a window is opened an has the focus, and
+			-- there is a scrollarea with a selected image of a .bas file :
+			-- edit the .bas file with the notepad
+			if isFileWindow then
+				for _, id in ipairs(active_file_icons(window, true)) do
+					local path = minGUI.gtree[id].filePath
+					if path:lower():sub(-4) == ".bas" and love.filesystem.getInfo(path, "file") then
+						open_notepad(path)
+						break
+					end
+				end
+			end
+		elseif minGUI_eventSubMenu == 2 then
+			-- if only one file or of folder is selected,
+			-- gives the possibility to rename it
+			if isFileWindow then
+			    local selected = active_file_icons(window, true)
+			    if #selected == 1 then GEM_open_file_dialog(window, minGUI.gtree[selected[1]].filePath) end
+			end
+		elseif minGUI_eventSubMenu == 3 then
+			-- open a little window with a "Search" string gadget :
+			-- we type the filename, and the scrollbars scrolls if
+			-- the file exists
+			if isFileWindow then GEM_open_file_dialog(window) end
+		elseif minGUI_eventSubMenu == 4 then
+			-- if a window is opened an has the focus, and
+			-- there is a scrollarea, then create a
+			-- new folder, named "New folder", but if it already
+			-- exists, add (1), (2), (3) at the end, etc.
+			if isFileWindow then GEM_create_drive_entry(window, true) end
+		elseif minGUI_eventSubMenu == 5 then
+			-- if a window is opened an has the focus, and
+			-- there is a scrollarea, then create a
+			-- new .txt file, named "New file", but if it already
+			-- exists, add (1), (2), (3) at the end, etc.
+			if isFileWindow then GEM_create_drive_entry(window, false) end
+		elseif minGUI_eventSubMenu == 6 then
+			-- close the window that has the focus
+			if isFileWindow then minGUI:delete_gadget(window) end
+		elseif minGUI_eventSubMenu == 7 then
+			-- select all the image gadgets files in the window,
+			-- even the not visible ones
+			if isFileWindow then
+				for _, id in ipairs(active_file_icons(window, false)) do minGUI.gtree[id].selected = true end
+			end
+		elseif minGUI_eventSubMenu == 8 then
+			-- unselect all the image gadgets files in the window
+			if isFileWindow then
+				for _, id in ipairs(active_file_icons(window, false)) do
+					minGUI.gtree[id].selected = false
+					if minGUI.gfocus == id then minGUI.gfocus = nil end
+				end
+			end
+		elseif minGUI_eventSubMenu == 9 then
+			-- put the selected files in the trashcan
+			if isFileWindow then
+				GEM_drop_drive_selection(active_file_icons(window, true), nil, true)
+			end
+		elseif minGUI_eventSubMenu == 10 then
 			love.event.quit()
 		end
 	end
@@ -208,10 +294,10 @@ function love.update(dt)
 				table.insert(minGUI.gstack, 1, {eventGadget = gadget, eventType = event, eventSource = source, eventDrop = drop})
 			end
 			gadget, event, info = contextMenu, MG_EVENT_LEFT_MOUSE_DOUBLECLICK, CONTEXT_MENU_INFO
-		elseif contextItem == 3 then
+		elseif contextItem == 2 then
 			-- Edit selection: the editor action can use this exact file path.
 			open_notepad(CONTEXT_MENU_INFO.filePath)
-		elseif contextItem == 5 then
+		elseif contextItem == 3 then
 			-- Delete selection: no disk entry is removed without an application handler.
 			print("Delete", CONTEXT_MENU_INFO.fileName, CONTEXT_MENU_INFO.filePath)
 		end
@@ -220,7 +306,9 @@ function love.update(dt)
 	-- eventGadget received ?
 	if gadget ~= nil then
 		-- left click on a gadget ?
-		if notepad_gadget_event(gadget, event) then
+		if GEM_file_dialog_event(gadget, event) then
+			-- Rename and search dialogs own their controls.
+		elseif notepad_gadget_event(gadget, event) then
 			-- Notepad owns its save shortcut.
 		elseif snd_player_event(gadget, event) then
 			-- Audio player owns its Play and Stop buttons.

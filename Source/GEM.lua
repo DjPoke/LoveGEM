@@ -345,3 +345,57 @@ function GEM_drop_drive_selection(sources, targetID, trash)
         end
     end
 end
+
+function GEM_create_drive_entry(windowID, folder)
+    local window = minGUI.gtree[windowID]
+    if not window or not window.driveDirectory or not minGUI.gtree[window.driveScrollarea] then return end
+    local stem, extension = folder and 'New folder' or 'New file', folder and '' or '.txt'
+    local name, number = stem .. extension, 0
+    while love.filesystem.getInfo(window.driveDirectory .. '/' .. name) do
+        number = number + 1
+        name = stem .. ' (' .. number .. ')' .. extension
+    end
+    local path = window.driveDirectory .. '/' .. name
+    local ok, err
+    if folder then ok, err = love.filesystem.createDirectory(path)
+    else ok, err = love.filesystem.write(path, '') end
+    if not ok then love.window.showMessageBox('Create', tostring(err), 'error'); return end
+    refreshDrive(window.driveDirectory)
+    return path
+end
+
+function GEM_rename_drive_entry(path, name)
+    if type(name) ~= 'string' or name:match('^%s*$') or name == '.' or name == '..'
+        or name:find('[/\\%z]') then return nil, 'Invalid name' end
+    local directory = path:match('^(.*)/[^/]+$')
+    if not directory then return nil, 'Invalid path' end
+    local destination = directory .. '/' .. name
+    if destination == path then return true end
+    if love.filesystem.getInfo(destination) then return nil, 'This name already exists' end
+    local save = love.filesystem.getSaveDirectory()
+    if love.filesystem.getRealDirectory(path) ~= save then return nil, 'This entry is not writable' end
+    local ok, err = os.rename(save .. '/' .. path, save .. '/' .. destination)
+    if not ok then return nil, err end
+    if directory == 'Trashcan' then
+        local index = trashIndex()
+        index[destination], index[path] = index[path], nil
+        local saved, reason = saveTrashIndex(index)
+        if not saved then
+            os.rename(save .. '/' .. destination, save .. '/' .. path)
+            return nil, reason
+        end
+    end
+    -- Windows opened inside the renamed folder must follow its new path.
+    local directories = {[directory] = true}
+    for _, window in minGUI_each_gadget() do
+        local current = window.driveDirectory
+        if window.tp == MG_WINDOW and current
+            and (current == path or current:sub(1, #path + 1) == path .. '/') then
+            window.driveDirectory = destination .. current:sub(#path + 1)
+            window.title = window.driveDirectory
+            directories[window.driveDirectory] = true
+        end
+    end
+    for current in pairs(directories) do refreshDrive(current) end
+    return true
+end

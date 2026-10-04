@@ -70,7 +70,33 @@ function minGUI_each_gadget(reverse)
     end
 end
 
+function minGUI_priority_window()
+    local active = minGUI.gtree[minGUI.activeWindow]
+    if active and active.tp == MG_WINDOW
+        and minGUI_flag_active(active.flags or 0, MG_FLAG_WINDOW_TOP_PRIORITY) then
+        return minGUI.activeWindow
+    end
+    for id, window in minGUI_each_gadget(true) do
+        if window.tp == MG_WINDOW and minGUI_flag_active(window.flags or 0, MG_FLAG_WINDOW_TOP_PRIORITY) then
+            return id
+        end
+    end
+end
+
+function minGUI_focus_allowed(num)
+    local priority = minGUI_priority_window()
+    if not priority then return true end
+    local owner = num
+    while owner and minGUI.gtree[owner] do
+        if minGUI.gtree[owner].tp == MG_WINDOW then return owner == priority end
+        owner = minGUI.gtree[owner].parent
+    end
+    return false
+end
+
 function minGUI_active_window()
+    local priority = minGUI_priority_window()
+    if priority then return priority end
     if minGUI.gtree[minGUI.activeWindow] then return minGUI.activeWindow end
     for id, gadget in minGUI_each_gadget(true) do
         if gadget.tp == MG_WINDOW then return id end
@@ -82,9 +108,10 @@ function minGUI_each_interactive_gadget(reverse)
     local active = minGUI_active_window()
     local activeBranch = {}
     local parent = active
+    local priority = minGUI_priority_window()
     while parent and minGUI.gtree[parent] do
         activeBranch[parent] = true
-        parent = minGUI.gtree[parent].parent
+        parent = not priority and minGUI.gtree[parent].parent or nil
     end
     return function()
         while true do
@@ -427,4 +454,14 @@ function minGUI_menu_hit(w)
         end
     end
     return nil, nil, false
+end
+
+-- Public event indices count actionable entries; geometry keeps physical rows.
+function minGUI_menu_item_index(items, row)
+    if not items or not items[row] or items[row] == "-" then return nil end
+    local index = 0
+    for i = 1, row do
+        if items[i] ~= "-" then index = index + 1 end
+    end
+    return index
 end

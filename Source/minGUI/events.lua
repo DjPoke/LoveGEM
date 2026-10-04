@@ -247,6 +247,33 @@ function minGUI_update_events(dt)
 		end
 	end
 
+    local priority = minGUI_priority_window()
+    if priority and not minGUI.windowDrag and not minGUI.gadgetDrag then
+        local window = minGUI.gtree[priority]
+        local ox, oy = minGUI_get_parent_gadget_offset(priority)
+        local x, y = minGUI.mouse.x - ox - window.x, minGUI.mouse.y - oy - window.y
+        local outside = x < 0 or y < 0 or x >= window.width or y >= window.height
+        for _, menu in minGUI_each_interactive_gadget() do
+            if menu.tp == MG_INTERNAL_MENU and menu.menu.selected > 0 then
+                local _, _, inside = minGUI_menu_hit(menu)
+                if inside then outside = false; break end
+            end
+        end
+        if outside and (minGUI.mouse.mpressed[MG_LEFT_BUTTON] or minGUI.mouse.mpressed[MG_RIGHT_BUTTON]) then
+            minGUI.priorityBlockedClick = true
+        end
+    end
+    if minGUI.priorityBlockedClick then
+        if not minGUI.mouse.mbtn[MG_LEFT_BUTTON] and not minGUI.mouse.mbtn[MG_RIGHT_BUTTON] then
+            minGUI.priorityBlockedClick = nil
+        end
+        minGUI_update_keyboard_shortcuts()
+        minGUI_update_string_keyboard()
+        minGUI_update_editor_keyboard()
+        minGUI_update_spin_clipboard()
+        return
+    end
+
 	if minGUI_update_context_menu() then return end
 	if minGUI_update_choices() then return end
 
@@ -362,7 +389,7 @@ function minGUI_check_internal_gadget_clicked(b)
             if inside then
                 if head then
                     w.menu.selected = w.menu.selected == head and 0 or head
-                elseif row then
+                elseif row and w.array[w.menu.selected].menu_list[row] ~= "-" then
                     table.insert(minGUI.mstack, {eventMenu = w.menu.selected, eventSubMenu = row, eventGadget = w.num})
                     w.menu.selected = 0
                 end

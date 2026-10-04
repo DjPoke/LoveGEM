@@ -47,7 +47,7 @@ function minGUI_update_context_menu()
 	if love.keyboard.isDown('escape') then
 		minGUI.contextMenu = nil
 	elseif minGUI.mouse.mpressed[MG_LEFT_BUTTON] then
-		if menu.hover > 0 then
+		if menu.hover > 0 and menu.items[menu.hover] ~= '-' then
 			table.insert(minGUI.cstack, {menu=menu.num, item=menu.hover})
 			minGUI.contextMenu = nil
 		elseif not inside then minGUI.contextMenu = nil end
